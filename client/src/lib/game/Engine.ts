@@ -178,19 +178,25 @@ export class GameEngine {
       const oldCell = this.getCellAt(p.x, p.y);
       p.direction = p.nextDirection;
 
-      // Move player
       const moveDist = PLAYER_SPEED * dt;
+      let nextX = p.x;
+      let nextY = p.y;
+
       switch (p.direction) {
-        case 'UP': p.y -= moveDist; break;
-        case 'DOWN': p.y += moveDist; break;
-        case 'LEFT': p.x -= moveDist; break;
-        case 'RIGHT': p.x += moveDist; break;
+        case 'UP': nextY -= moveDist; break;
+        case 'DOWN': nextY += moveDist; break;
+        case 'LEFT': nextX -= moveDist; break;
+        case 'RIGHT': nextX += moveDist; break;
       }
 
-      if (p.x < 0) p.x = 0;
-      if (p.x > WORLD_WIDTH) p.x = WORLD_WIDTH;
-      if (p.y < 0) p.y = 0;
-      if (p.y > WORLD_HEIGHT) p.y = WORLD_HEIGHT;
+      // Bounds checking
+      if (nextX < 0) nextX = 0;
+      if (nextX > WORLD_WIDTH) nextX = WORLD_WIDTH;
+      if (nextY < 0) nextY = 0;
+      if (nextY > WORLD_HEIGHT) nextY = WORLD_HEIGHT;
+
+      p.x = nextX;
+      p.y = nextY;
 
       const newCell = this.getCellAt(p.x, p.y);
       const cellKey = `${newCell.x},${newCell.y}`;
