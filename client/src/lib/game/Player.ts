@@ -35,8 +35,8 @@ export class PlayerState {
     this.color = color;
     this.x = startX;
     this.y = startY;
-    this.direction = 'UP';
-    this.nextDirection = 'UP';
+    this.direction = 'RIGHT';
+    this.nextDirection = 'RIGHT';
     this.territory = new Set();
     this.trail = [];
     this.trailSet = new Set();

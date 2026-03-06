@@ -4,8 +4,9 @@ export const CELL_SIZE = 30; // 30px per cell
 export const WORLD_WIDTH = GRID_SIZE * CELL_SIZE;
 export const WORLD_HEIGHT = GRID_SIZE * CELL_SIZE;
 
-export const PLAYER_SPEED = 150; // pixels per second
+export const PLAYER_SPEED = 200; // pixels per second
 export const TICK_RATE = 1000 / 60; // 60 fps
+export const BOT_COUNT = 5; // Reduced from default 7
 
 export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
