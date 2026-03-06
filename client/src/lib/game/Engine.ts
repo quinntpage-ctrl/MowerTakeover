@@ -11,6 +11,26 @@ interface GameCallbacks {
   onLeaderboardUpdate: (board: {name: string, score: number, color: string}[]) => void;
 }
 
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+  rotation: number;
+  vRot: number;
+}
+
+interface ClaimFlash {
+  x: number;
+  y: number;
+  alpha: number;
+  color: string;
+}
+
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -26,6 +46,9 @@ export class GameEngine {
   private lastTimestamp: number = 0;
   private camera = { x: 0, y: 0 };
   private callbacks: GameCallbacks;
+
+  private particles: Particle[] = [];
+  private claimFlashes: ClaimFlash[] = [];
 
   constructor(canvas: HTMLCanvasElement, playerName: string, callbacks: GameCallbacks) {
     this.canvas = canvas;
@@ -155,6 +178,27 @@ export class GameEngine {
   }
 
   private update(dt: number) {
+    // Update particles
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.rotation += p.vRot * dt;
+      p.life -= dt;
+      if (p.life <= 0) {
+        this.particles.splice(i, 1);
+      }
+    }
+
+    // Update claim flashes
+    for (let i = this.claimFlashes.length - 1; i >= 0; i--) {
+      const flash = this.claimFlashes[i];
+      flash.alpha -= dt * 2.0; // Flash lasts half a second
+      if (flash.alpha <= 0) {
+        this.claimFlashes.splice(i, 1);
+      }
+    }
+
     this.players.forEach(p => {
       if (p.isDead) {
          if (p.deathAlpha > 0) {
@@ -273,6 +317,29 @@ export class GameEngine {
             p.trail.forEach(t => {
               const k = `${t.x},${t.y}`;
               p.territory.add(k);
+              this.claimFlashes.push({
+                 x: t.x,
+                 y: t.y,
+                 alpha: 1.0,
+                 color: p.color
+              });
+              
+              // Add grass clipping particles where they mowed
+              for (let i = 0; i < 3; i++) {
+                this.particles.push({
+                   x: t.x * CELL_SIZE + Math.random() * CELL_SIZE,
+                   y: t.y * CELL_SIZE + Math.random() * CELL_SIZE,
+                   vx: (Math.random() - 0.5) * 100,
+                   vy: (Math.random() - 0.5) * 100 - 50, // slight upward bias
+                   life: Math.random() * 0.5 + 0.5,
+                   maxLife: 1.0,
+                   color: '#4ade80', // grass color
+                   size: Math.random() * 4 + 2,
+                   rotation: Math.random() * Math.PI * 2,
+                   vRot: (Math.random() - 0.5) * 10
+                });
+              }
+
               this.players.forEach(other => {
                 if (other.id !== p.id) other.territory.delete(k);
               });
@@ -287,6 +354,13 @@ export class GameEngine {
             
             newlyCaptured.forEach(k => {
               p.territory.add(k);
+              const [cx, cy] = k.split(',').map(Number);
+              this.claimFlashes.push({
+                 x: cx,
+                 y: cy,
+                 alpha: 1.0,
+                 color: p.color
+              });
               this.players.forEach(other => {
                 if (other.id !== p.id) other.territory.delete(k);
               });
@@ -517,6 +591,19 @@ export class GameEngine {
           }
         });
 
+        // 1.5 Claim Flashes (Exciting "mowing completed" visual)
+        this.claimFlashes.forEach(flash => {
+          if (flash.x * CELL_SIZE >= startX - CELL_SIZE && flash.x * CELL_SIZE <= endX &&
+              flash.y * CELL_SIZE >= startY - CELL_SIZE && flash.y * CELL_SIZE <= endY) {
+            this.ctx.fillStyle = flash.color;
+            this.ctx.globalAlpha = flash.alpha;
+            this.ctx.fillRect(flash.x * CELL_SIZE, flash.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          }
+        });
+        
+        // Reset global alpha after drawing flashes
+        this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
+
         // 2. Trail (Mowing in progress)
         this.ctx.fillStyle = p.color + 'AA';
         p.trail.forEach(t => {
@@ -572,6 +659,19 @@ export class GameEngine {
         this.ctx.fillText(p.name, p.x, p.y - 25);
       
       this.ctx.globalAlpha = 1.0;
+    });
+
+    // 5. Draw Particles (Grass Clippings)
+    this.particles.forEach(p => {
+        if (p.x >= startX && p.x <= endX && p.y >= startY && p.y <= endY) {
+            this.ctx.save();
+            this.ctx.translate(p.x, p.y);
+            this.ctx.rotate(p.rotation);
+            this.ctx.globalAlpha = p.life / p.maxLife;
+            this.ctx.fillStyle = p.color;
+            this.ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+            this.ctx.restore();
+        }
     });
 
     this.ctx.restore();
