@@ -39,8 +39,8 @@ export default function Home() {
 
       {/* UI OVERLAY - LEADERBOARD */}
       {gameState === "playing" && (
-        <div className="absolute top-4 right-4 glass-panel rounded-xl p-4 w-48 shadow-lg pointer-events-none transition-all">
-          <h3 className="font-display text-lg text-primary-foreground bg-primary -mt-4 -mx-4 mb-3 p-2 rounded-t-xl text-center shadow-sm">
+        <div className="absolute top-20 md:top-4 right-4 glass-panel rounded-xl p-4 w-40 md:w-48 shadow-lg pointer-events-none transition-all z-10">
+          <h3 className="font-display text-base md:text-lg text-primary-foreground bg-primary -mt-4 -mx-4 mb-3 p-2 rounded-t-xl text-center shadow-sm">
             Top Mowers
           </h3>
           <ul className="space-y-2">
