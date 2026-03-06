@@ -22,29 +22,34 @@ export function captureEnclosedAreas(
     if (y < minY) minY = y; if (y > maxY) maxY = y;
   });
 
-  // Perform flood fill from all four edges of the WORLD, not just the bounding box.
-  // This ensures that anything not reachable from the world edges is captured.
+  // Perform flood fill from all four edges of the WORLD
   for (let x = 0; x < gridWidth; x++) {
-    for (let y of [0, gridHeight - 1]) {
-      const key = `${x},${y}`;
-      if (!territorySet.has(key) && !visited.has(key)) {
-        visited.add(key); toExplore.push([x, y]);
+    const keys = [`${x},0`, `${x},${gridHeight - 1}`];
+    keys.forEach(k => {
+      if (!territorySet.has(k) && !visited.has(k)) {
+        const [cx, cy] = k.split(',').map(Number);
+        visited.add(k);
+        toExplore.push([cx, cy]);
       }
-    }
+    });
   }
   for (let y = 0; y < gridHeight; y++) {
-    for (let x of [0, gridWidth - 1]) {
-      const key = `${x},${y}`;
-      if (!territorySet.has(key) && !visited.has(key)) {
-        visited.add(key); toExplore.push([x, y]);
+    const keys = [`0,${y}`, `${gridWidth - 1},${y}`];
+    keys.forEach(k => {
+      if (!territorySet.has(k) && !visited.has(k)) {
+        const [cx, cy] = k.split(',').map(Number);
+        visited.add(k);
+        toExplore.push([cx, cy]);
       }
-    }
+    });
   }
   
   const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]];
   let head = 0;
   while (head < toExplore.length) {
-    const [cx, cy] = toExplore[head++];
+    const coord = toExplore[head++];
+    if (!coord) continue;
+    const [cx, cy] = coord;
     for (const [dx, dy] of dirs) {
       const nx = cx + dx, ny = cy + dy;
       if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
@@ -58,8 +63,8 @@ export function captureEnclosedAreas(
   
   // 3. Any cell that is NOT visited and NOT already in territory is captured!
   const newlyCaptured: string[] = [];
-  // For the final check, we MUST check the entire grid to ensure
-  // that large loops (e.g. around the starting box) are fully captured.
+  // For the final check, we check the entire grid to ensure
+  // that loops are fully captured.
   for (let x = 0; x < gridWidth; x++) {
     for (let y = 0; y < gridHeight; y++) {
       const key = `${x},${y}`;

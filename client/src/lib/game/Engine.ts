@@ -142,33 +142,40 @@ export class GameEngine {
     const cellKey = `${newCell.x},${newCell.y}`;
 
     if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
-      // We entered a new cell
-      if (p.territory.has(cellKey)) {
-        // Entering safe zone - capture!
+      const isEnteringSafeZone = p.territory.has(cellKey);
+      
+      if (isEnteringSafeZone) {
         if (p.trail.length > 0) {
-          // 1. Convert trail to territory
-          p.trail.forEach(t => p.territory.add(`${t.x},${t.y}`));
-          p.trailSet.clear(); // Clear immediately to avoid self-collision
+          // BRIDGE THE GAP: Ensure the cell we just entered is treated as territory
+          p.territory.add(cellKey);
           
-          // 2. Flood fill to capture internal areas
+          // 1. Convert ALL trail segments to territory
+          p.trail.forEach(t => p.territory.add(`${t.x},${t.y}`));
+          
+          // 2. Clear trail immediately to prevent self-collision
+          p.trailSet.clear();
+          p.trail = [];
+          
+          // 3. Flood fill to capture internal areas
           const newlyCaptured = captureEnclosedAreas(new Set(p.territory));
           newlyCaptured.forEach(k => {
             p.territory.add(k);
-            // Steal from others (mockup multi logic)
             this.players.forEach(other => {
               if (other.id !== p.id) other.territory.delete(k);
             });
           });
           
-          p.trail = [];
           p.updateScore();
           this.callbacks.onScoreUpdate(p.score);
         }
       } else {
-        // We are in hostile territory - check self-collision
-        if (p.trailSet.has(cellKey)) {
-          // If we hit our own trail, we die
-          // (Unless it's the cell we literally just came from, but we handled that with the logic structure)
+        // HOSTILE TERRITORY
+        const isSelfCollision = p.trailSet.has(cellKey);
+        
+        // IMMUNITY: Ignore the last 3 points to allow sharp turns and account for movement speed
+        const isRecentTrail = p.trail.slice(-3).some(t => t.x === newCell.x && t.y === newCell.y);
+
+        if (isSelfCollision && !isRecentTrail) {
           this.killPlayer(p.id);
           return;
         }
@@ -220,11 +227,11 @@ export class GameEngine {
     this.ctx.strokeStyle = COLORS.grid;
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
-    for (let x = Math.max(0, startX); x <= Math.min(WORLD_WIDTH, endX); x += CELL_SIZE) {
+    for (let x = Math.max(0, Math.floor(startX / CELL_SIZE) * CELL_SIZE); x <= Math.min(WORLD_WIDTH, endX); x += CELL_SIZE) {
       this.ctx.moveTo(x, Math.max(0, startY));
       this.ctx.lineTo(x, Math.min(WORLD_HEIGHT, endY));
     }
-    for (let y = Math.max(0, startY); y <= Math.min(WORLD_HEIGHT, endY); y += CELL_SIZE) {
+    for (let y = Math.max(0, Math.floor(startY / CELL_SIZE) * CELL_SIZE); y <= Math.min(WORLD_HEIGHT, endY); y += CELL_SIZE) {
       this.ctx.moveTo(Math.max(0, startX), y);
       this.ctx.lineTo(Math.min(WORLD_WIDTH, endX), y);
     }
