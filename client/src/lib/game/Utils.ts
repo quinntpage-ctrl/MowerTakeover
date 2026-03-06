@@ -56,10 +56,18 @@ export function captureEnclosedAreas(
     }
   }
   
+  // 3. Any cell that is NOT visited and NOT already in territory is captured!
   const newlyCaptured: string[] = [];
-  // Check the entire grid for cells that were not reached by the flood fill
-  for (let x = 0; x < gridWidth; x++) {
-    for (let y = 0; y < gridHeight; y++) {
+  // Optimization: Only check cells within a slightly expanded bounding box of the territory
+  // to avoid checking 10,000 cells every frame, but ensure it's large enough to catch gaps.
+  const margin = 2;
+  const searchMinX = Math.max(0, minX - margin);
+  const searchMaxX = Math.min(gridWidth - 1, maxX + margin);
+  const searchMinY = Math.max(0, minY - margin);
+  const searchMaxY = Math.min(gridHeight - 1, maxY + margin);
+
+  for (let x = searchMinX; x <= searchMaxX; x++) {
+    for (let y = searchMinY; y <= searchMaxY; y++) {
       const key = `${x},${y}`;
       if (!territorySet.has(key) && !visited.has(key)) {
         newlyCaptured.push(key);
