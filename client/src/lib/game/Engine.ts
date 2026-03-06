@@ -246,8 +246,14 @@ export class GameEngine {
             // Add the final cell to explicitly close the geometry
             p.trail.push({...newCell});
             
-            // 1. Convert ALL trail segments to territory
-            p.trail.forEach(t => p.territory.add(`${t.x},${t.y}`));
+            // 1. Convert ALL trail segments to territory and steal from others
+            p.trail.forEach(t => {
+              const k = `${t.x},${t.y}`;
+              p.territory.add(k);
+              this.players.forEach(other => {
+                if (other.id !== p.id) other.territory.delete(k);
+              });
+            });
             
             // 2. Clear trail immediately to prevent self-collision
             p.trailSet.clear();
@@ -263,9 +269,20 @@ export class GameEngine {
               });
             });
             
-            p.updateScore();
-            if (p.id === this.localPlayerId) {
-               this.callbacks.onScoreUpdate(p.score);
+            // Update scores for ALL players since territory might have been stolen
+            const toKill: string[] = [];
+            this.players.forEach(player => {
+                player.updateScore();
+                if (player.territory.size === 0 && !player.isDead) {
+                    toKill.push(player.id);
+                }
+            });
+            toKill.forEach(id => this.killPlayer(id, 'all-territory-lost'));
+            
+            // Update the local player's HUD score
+            const localP = this.players.get(this.localPlayerId);
+            if (localP) {
+               this.callbacks.onScoreUpdate(localP.score);
             }
           }
         } else {
@@ -392,11 +409,18 @@ export class GameEngine {
         const dir = dirs[Math.floor(Math.random() * dirs.length)];
         p.direction = dir;
         p.nextDirection = dir;
+        
+        // Update all scores because clearing/respawning territory might have changed totals
+        this.players.forEach(player => player.updateScore());
     } else {
         // Human player logic
         p.isDead = true;
         p.trail = [];
         p.trailSet.clear();
+        // Clear territory on death so it becomes available again
+        p.territory.clear();
+        p.updateScore();
+        this.players.forEach(player => player.updateScore());
         this.callbacks.onGameOver(p.score, reason);
     }
   }
