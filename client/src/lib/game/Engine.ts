@@ -43,10 +43,17 @@ export class GameEngine {
     this.players.clear();
     
     // Spawn local player
-    const startX = Math.floor(Math.random() * (WORLD_WIDTH - 800)) + 400;
-    const startY = Math.floor(Math.random() * (WORLD_HEIGHT - 800)) + 400;
+    const startX = WORLD_WIDTH / 2;
+    const startY = WORLD_HEIGHT / 2;
     
+    // Ensure camera is centered on spawn
+    this.camera.x = startX;
+    this.camera.y = startY;
+
+    // Set initial position for local player
     const localPlayer = new PlayerState(this.localPlayerId, playerName, PLAYER_COLORS[0], startX, startY);
+    localPlayer.x = startX;
+    localPlayer.y = startY;
     this.players.set(this.localPlayerId, localPlayer);
     
     // Spawn bots
@@ -171,6 +178,7 @@ export class GameEngine {
       const oldCell = this.getCellAt(p.x, p.y);
       p.direction = p.nextDirection;
 
+      // Move player
       const moveDist = PLAYER_SPEED * dt;
       switch (p.direction) {
         case 'UP': p.y -= moveDist; break;

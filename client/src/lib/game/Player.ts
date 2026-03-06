@@ -44,12 +44,12 @@ export class PlayerState {
     this.score = 0;
     this.isBot = isBot;
     
-    // Initialize start territory (3x3 grid around start position)
+    // Initialize start territory (5x5 grid around start position)
     const gridX = Math.floor(startX / 30); // 30 is CELL_SIZE
     const gridY = Math.floor(startY / 30);
     
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dy = -2; dy <= 2; dy++) {
         const nx = gridX + dx;
         const ny = gridY + dy;
         if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
