@@ -152,14 +152,21 @@ export class GameEngine {
         p.trail.push({...newCell});
         p.trailSet.add(cellKey);
       } else if (p.trail.length > 0) {
-        // Returned to territory
+        // Returned to territory - finalize capture
         p.trail.forEach(t => {
           const k = `${t.x},${t.y}`;
           p.territory.add(k);
         });
         
-        const captured = captureEnclosedAreas(p.territory);
-        captured.forEach(k => p.territory.add(k));
+        // Pass a copy to avoid mutation issues during calculation
+        const captured = captureEnclosedAreas(new Set(p.territory));
+        captured.forEach(k => {
+          p.territory.add(k);
+          // Steal from others
+          this.players.forEach(other => {
+            if (other.id !== p.id) other.territory.delete(k);
+          });
+        });
         
         p.trail = [];
         p.trailSet.clear();
