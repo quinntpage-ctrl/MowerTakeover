@@ -231,6 +231,14 @@ export class GameEngine {
 
       // Ensure we don't kill the player on the exact frame they step out of their territory
       if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
+        
+        // Check if we hit someone else's trail (works even if we are in our own safe zone)
+        this.players.forEach((otherP, otherPid) => {
+          if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
+            this.killPlayer(otherPid, 'killed-by-other');
+          }
+        });
+
         const isEnteringSafeZone = p.territory.has(cellKey);
         
         if (isEnteringSafeZone) {
@@ -274,13 +282,6 @@ export class GameEngine {
             this.killPlayer(p.id, 'self-collision');
             return;
           }
-          
-          // Check if we hit someone else's trail
-          this.players.forEach((otherP, otherPid) => {
-            if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
-              this.killPlayer(otherPid, 'killed-by-other');
-            }
-          });
 
           // Add current cell to trail
           // To handle crossing into the safezone perfectly, only record non-safezone steps
@@ -348,11 +349,56 @@ export class GameEngine {
   private killPlayer(pid: string, reason: string = 'unknown') {
     const p = this.players.get(pid);
     if (!p) return;
-    p.isDead = true;
-    p.trail = [];
-    p.trailSet.clear();
+    
     console.log(`Player ${pid} killed: ${reason}`);
-    this.callbacks.onGameOver(p.score, reason);
+
+    if (p.isBot) {
+        // Respawn the bot instead of permanently killing it
+        p.trail = [];
+        p.trailSet.clear();
+        
+        // Pick a new random spot for the bot
+        const rx = Math.random() * (WORLD_WIDTH * 0.8) + (WORLD_WIDTH * 0.1);
+        const ry = Math.random() * (WORLD_HEIGHT * 0.8) + (WORLD_HEIGHT * 0.1);
+        
+        p.x = Math.floor(rx / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+        p.y = Math.floor(ry / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+        
+        // Re-initialize their territory to a fresh 7x7 square
+        p.territory.clear();
+        const gridX = Math.floor(p.x / CELL_SIZE);
+        const gridY = Math.floor(p.y / CELL_SIZE);
+        
+        for (let dx = -3; dx <= 3; dx++) {
+            for (let dy = -3; dy <= 3; dy++) {
+                const nx = gridX + dx;
+                const ny = gridY + dy;
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                    const key = `${nx},${ny}`;
+                    p.territory.add(key);
+                    // Ensure we clear this new spawn area from any other players
+                    this.players.forEach(other => {
+                        if (other.id !== p.id) {
+                            other.territory.delete(key);
+                        }
+                    });
+                }
+            }
+        }
+        p.updateScore();
+        
+        // Give them a new random direction
+        const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+        const dir = dirs[Math.floor(Math.random() * dirs.length)];
+        p.direction = dir;
+        p.nextDirection = dir;
+    } else {
+        // Human player logic
+        p.isDead = true;
+        p.trail = [];
+        p.trailSet.clear();
+        this.callbacks.onGameOver(p.score, reason);
+    }
   }
 
   private draw() {
