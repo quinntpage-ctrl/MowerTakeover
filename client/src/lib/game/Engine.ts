@@ -168,8 +168,11 @@ export class GameEngine {
   }
 
   private update(dt: number) {
-    const p = this.players.get(this.localPlayerId);
-    if (!p || p.isDead) return;
+    // Cap deltaTime to prevent huge leaps if the tab was inactive
+    const cappedDt = Math.min(dt, 0.1);
+    
+    const localPlayer = this.players.get(this.localPlayerId);
+    if (!localPlayer || localPlayer.isDead) return;
 
     // Movement logic for all players
     this.players.forEach((p, pid) => {
@@ -178,7 +181,7 @@ export class GameEngine {
       const oldCell = this.getCellAt(p.x, p.y);
       p.direction = p.nextDirection;
 
-      const moveDist = PLAYER_SPEED * dt;
+      const moveDist = PLAYER_SPEED * cappedDt;
       let nextX = p.x;
       let nextY = p.y;
 
@@ -189,11 +192,11 @@ export class GameEngine {
         case 'RIGHT': nextX += moveDist; break;
       }
 
-      // Bounds checking
-      if (nextX < 0) nextX = 0;
-      if (nextX > WORLD_WIDTH) nextX = WORLD_WIDTH;
-      if (nextY < 0) nextY = 0;
-      if (nextY > WORLD_HEIGHT) nextY = WORLD_HEIGHT;
+      // Strict bounds checking
+      if (nextX < 1) nextX = 1;
+      if (nextX > WORLD_WIDTH - 1) nextX = WORLD_WIDTH - 1;
+      if (nextY < 1) nextY = 1;
+      if (nextY > WORLD_HEIGHT - 1) nextY = WORLD_HEIGHT - 1;
 
       p.x = nextX;
       p.y = nextY;
@@ -250,8 +253,9 @@ export class GameEngine {
       this.callbacks.onLeaderboardUpdate(sorted);
     }
     
-    this.camera.x = p.x;
-    this.camera.y = p.y;
+    // Always follow the local player
+    this.camera.x = localPlayer.x;
+    this.camera.y = localPlayer.y;
   }
 
   private killPlayer(pid: string) {

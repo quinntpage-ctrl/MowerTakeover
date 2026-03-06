@@ -33,8 +33,8 @@ export class PlayerState {
     this.id = id;
     this.name = name;
     this.color = color;
-    this.x = startX;
-    this.y = startY;
+    this.x = startX; 
+    this.y = startY; 
     this.direction = 'RIGHT';
     this.nextDirection = 'RIGHT';
     this.territory = new Set();
