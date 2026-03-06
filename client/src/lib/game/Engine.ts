@@ -401,6 +401,49 @@ export class GameEngine {
           p.trailSet.add(cellKey);
         }
       }
+      
+      // Continuous grass cutting animation while mowing
+      if (!p.territory.has(cellKey)) {
+          // Spawn more particles but give them a directional velocity based on mower direction
+          if (Math.random() < 0.4) {
+              let vx = 0;
+              let vy = 0;
+              let px = p.x;
+              let py = p.y;
+              
+              // Shoot clippings out of the right side of the mower deck
+              if (p.direction === 'UP') {
+                  vx = 80 + Math.random() * 40;
+                  vy = (Math.random() - 0.5) * 40;
+                  px += 10;
+              } else if (p.direction === 'DOWN') {
+                  vx = -80 - Math.random() * 40;
+                  vy = (Math.random() - 0.5) * 40;
+                  px -= 10;
+              } else if (p.direction === 'LEFT') {
+                  vx = (Math.random() - 0.5) * 40;
+                  vy = -80 - Math.random() * 40;
+                  py -= 10;
+              } else if (p.direction === 'RIGHT') {
+                  vx = (Math.random() - 0.5) * 40;
+                  vy = 80 + Math.random() * 40;
+                  py += 10;
+              }
+
+              this.particles.push({
+                 x: px + (Math.random() - 0.5) * 10,
+                 y: py + (Math.random() - 0.5) * 10,
+                 vx: vx,
+                 vy: vy,
+                 life: Math.random() * 0.3 + 0.2,
+                 maxLife: 0.5,
+                 color: '#4ade80', // bright grass color
+                 size: Math.random() * 3 + 2,
+                 rotation: Math.random() * Math.PI * 2,
+                 vRot: (Math.random() - 0.5) * 15
+              });
+          }
+      }
     });
 
     const lp = this.players.get(this.localPlayerId);
@@ -679,12 +722,31 @@ export class GameEngine {
         if (p.trail.length > 0) {
           this.ctx.beginPath();
           
-          // Start from mower position instead of just cell centers for a smoother line
-          const firstPoint = p.trail[0];
-          this.ctx.moveTo(firstPoint.x * CELL_SIZE + CELL_SIZE/2, firstPoint.y * CELL_SIZE + CELL_SIZE/2);
-          
-          for (let i = 1; i < p.trail.length; i++) {
-              this.ctx.lineTo(p.trail[i].x * CELL_SIZE + CELL_SIZE/2, p.trail[i].y * CELL_SIZE + CELL_SIZE/2);
+          for (let i = 0; i < p.trail.length; i++) {
+              const cell = p.trail[i];
+              let cx = cell.x * CELL_SIZE + CELL_SIZE/2;
+              let cy = cell.y * CELL_SIZE + CELL_SIZE/2;
+              
+              // Prevent the trail from flicking ahead of the mower in the current cell
+              if (i === p.trail.length - 1) {
+                  if (p.direction === 'RIGHT' && cx > p.x) cx = p.x;
+                  if (p.direction === 'LEFT' && cx < p.x) cx = p.x;
+                  if (p.direction === 'DOWN' && cy > p.y) cy = p.y;
+                  if (p.direction === 'UP' && cy < p.y) cy = p.y;
+              }
+              
+              if (i === 0) {
+                  // Connect visually to the safe zone we just exited from
+                  let startX = cx;
+                  let startY = cy;
+                  if (p.territory.has(`${cell.x-1},${cell.y}`)) startX -= CELL_SIZE;
+                  else if (p.territory.has(`${cell.x+1},${cell.y}`)) startX += CELL_SIZE;
+                  else if (p.territory.has(`${cell.x},${cell.y-1}`)) startY -= CELL_SIZE;
+                  else if (p.territory.has(`${cell.x},${cell.y+1}`)) startY += CELL_SIZE;
+                  this.ctx.moveTo(startX, startY);
+              }
+              
+              this.ctx.lineTo(cx, cy);
           }
           
           // Connect perfectly to the mower's current center to eliminate visual gaps
