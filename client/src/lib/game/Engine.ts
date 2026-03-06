@@ -277,18 +277,10 @@ export class GameEngine {
       p.x = Math.max(0, Math.min(WORLD_WIDTH - 0.001, p.x));
       p.y = Math.max(0, Math.min(WORLD_HEIGHT - 0.001, p.y));
 
-      // Handle map edge collision for bots (and players)
-      if (p.x === 0 || p.x >= WORLD_WIDTH - 0.01 || p.y === 0 || p.y >= WORLD_HEIGHT - 0.01) {
-          if (!p.isBot && p.id === this.localPlayerId) {
-             this.killPlayer(p.id, 'wall-collision');
-             return;
-          } else if (p.isBot) {
-             // Force bot to turn around if it hits a wall
-             if (p.x === 0) p.nextDirection = 'RIGHT';
-             else if (p.x >= WORLD_WIDTH - 0.01) p.nextDirection = 'LEFT';
-             else if (p.y === 0) p.nextDirection = 'DOWN';
-             else if (p.y >= WORLD_HEIGHT - 0.01) p.nextDirection = 'UP';
-          }
+      // Handle map edge collision for everyone
+      if (p.x <= 0 || p.x >= WORLD_WIDTH - 0.01 || p.y <= 0 || p.y >= WORLD_HEIGHT - 0.01) {
+          this.killPlayer(p.id, 'wall-collision');
+          return;
       }
 
 
@@ -564,6 +556,14 @@ export class GameEngine {
       this.ctx.lineTo(Math.min(WORLD_WIDTH, endX), y);
     }
     this.ctx.stroke();
+
+    // Draw the deadly pink border
+    this.ctx.strokeStyle = '#EC098D';
+    this.ctx.lineWidth = 6;
+    this.ctx.shadowColor = '#EC098D';
+    this.ctx.shadowBlur = 15;
+    this.ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    this.ctx.shadowBlur = 0; // reset
 
     this.players.forEach(p => {
       if (p.isDead && p.deathAlpha <= 0) return;
