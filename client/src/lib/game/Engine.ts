@@ -853,6 +853,14 @@ export class GameEngine {
           if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
               cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
             
+            this.ctx.save();
+
+            if (p.rank === 1 || p.rank === 2 || p.rank === 3) {
+                const glowColor = p.rank === 1 ? '#EC098D' : (p.rank === 2 ? '#C0C0C0' : '#CD7F32');
+                this.ctx.shadowColor = glowColor;
+                this.ctx.shadowBlur = 5; // Subtle glow for territory
+            }
+
             // Draw mowed background - lighter to contrast with high grass
             this.ctx.fillStyle = p.color + '66'; // slightly more solid to cover the base green
             this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
@@ -862,6 +870,8 @@ export class GameEngine {
             if (cy % 2 === 0) {
                this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
             }
+
+            this.ctx.restore();
           }
         });
 
@@ -881,6 +891,13 @@ export class GameEngine {
         // 2. Trail (Mowing in progress)
         this.ctx.fillStyle = p.color + 'AA';
         if (p.trail.length > 0) {
+          this.ctx.save();
+          if (p.rank === 1 || p.rank === 2 || p.rank === 3) {
+             const glowColor = p.rank === 1 ? '#EC098D' : (p.rank === 2 ? '#C0C0C0' : '#CD7F32');
+             this.ctx.shadowColor = glowColor;
+             this.ctx.shadowBlur = 10;
+          }
+
           this.ctx.beginPath();
           
           for (let i = 0; i < p.trail.length; i++) {
@@ -918,6 +935,8 @@ export class GameEngine {
           this.ctx.lineCap = 'round';
           this.ctx.lineJoin = 'round';
           this.ctx.stroke();
+
+          this.ctx.restore();
         }
 
         // 3. Mower Sprite
