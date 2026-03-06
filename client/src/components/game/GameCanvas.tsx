@@ -139,24 +139,27 @@ export default function GameCanvas({
     const handleResize = () => {
       if (canvasRef.current) {
         const dpr = window.devicePixelRatio || 1;
-        const rect = canvasRef.current.parentElement?.getBoundingClientRect() || { width: window.innerWidth, height: window.innerHeight };
+        const vv = window.visualViewport;
+        const w = vv ? vv.width : window.innerWidth;
+        const h = vv ? vv.height : window.innerHeight;
 
-        canvasRef.current.width = rect.width * dpr;
-        canvasRef.current.height = rect.height * dpr;
+        canvasRef.current.width = w * dpr;
+        canvasRef.current.height = h * dpr;
 
-        canvasRef.current.style.width = `${rect.width}px`;
-        canvasRef.current.style.height = `${rect.height}px`;
+        canvasRef.current.style.width = `${w}px`;
+        canvasRef.current.style.height = `${h}px`;
 
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
           ctx.scale(dpr, dpr);
         }
 
-        engine.resize(rect.width, rect.height);
+        engine.resize(w, h);
       }
     };
 
     window.addEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('resize', handleResize);
     handleResize();
 
     let touchStartX = 0;
@@ -200,6 +203,7 @@ export default function GameCanvas({
       ws.close();
       window.removeEventListener('keydown', handleKey);
       window.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };

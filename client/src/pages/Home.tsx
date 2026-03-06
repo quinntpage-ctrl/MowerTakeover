@@ -29,7 +29,7 @@ export default function Home() {
   };
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-grass-pattern relative flex items-center justify-center font-sans">
+    <div className="w-full h-full overflow-hidden bg-grass-pattern relative flex items-center justify-center font-sans" style={{ height: '100dvh' }}>
       
       {gameState === "playing" && (
         <GameCanvas 
