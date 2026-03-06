@@ -11,8 +11,8 @@ export const BOT_COUNT = 5; // Reduced from default 7
 export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
 export const COLORS = {
-  bg: '#fdf2f8', // Very light pink background
-  grid: '#fce7f3', // Soft pink grid lines
+  bg: '#94a3b8', // Unmowed gray/blue tint
+  grid: '#cbd5e1', // Lighter grid
   trailAlpha: 0.5,
 };
 

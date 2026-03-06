@@ -441,8 +441,24 @@ export class GameEngine {
     const startY = Math.floor((this.camera.y - this.height/2) / CELL_SIZE) * CELL_SIZE;
     const endY = startY + this.height + CELL_SIZE * 2;
 
-    // Draw Grid
-    this.ctx.strokeStyle = COLORS.grid;
+    // Draw Grid (unmowed grass texture base)
+    this.ctx.fillStyle = '#86efac'; // Light green for unmowed grass
+    this.ctx.fillRect(Math.max(0, startX), Math.max(0, startY), endX - startX, endY - startY);
+    
+    // Add some "grass" texture
+    this.ctx.fillStyle = '#4ade80';
+    for (let x = Math.max(0, Math.floor(startX / CELL_SIZE) * CELL_SIZE); x <= Math.min(WORLD_WIDTH, endX); x += CELL_SIZE) {
+        for (let y = Math.max(0, Math.floor(startY / CELL_SIZE) * CELL_SIZE); y <= Math.min(WORLD_HEIGHT, endY); y += CELL_SIZE) {
+            // Draw a few blades of grass per cell for texture
+            if ((x + y) % 3 === 0) {
+                 this.ctx.fillRect(x + 5, y + 5, 2, 6);
+                 this.ctx.fillRect(x + 15, y + 12, 2, 5);
+                 this.ctx.fillRect(x + 22, y + 4, 2, 7);
+            }
+        }
+    }
+
+    this.ctx.strokeStyle = '#22c55e'; // darker green grid
     this.ctx.lineWidth = 1;
     this.ctx.beginPath();
     for (let x = Math.max(0, Math.floor(startX / CELL_SIZE) * CELL_SIZE); x <= Math.min(WORLD_WIDTH, endX); x += CELL_SIZE) {
@@ -457,36 +473,73 @@ export class GameEngine {
 
     this.players.forEach(p => {
       if (!p.isDead) {
-        // 1. Territory
-        this.ctx.fillStyle = p.color + '44';
+        // 1. Territory (Mowed grass)
         p.territory.forEach(key => {
           const [cx, cy] = key.split(',').map(Number);
           if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
               cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
+            
+            // Draw mowed background
+            this.ctx.fillStyle = p.color + '33'; // very transparent player color
             this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            
+            // Draw subtle stripe pattern for mowed look
+            this.ctx.fillStyle = p.color + '11';
+            this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE / 2);
+            
+            // Draw player colored border for territory
+            this.ctx.strokeStyle = p.color;
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
           }
         });
 
-        // 2. Trail
+        // 2. Trail (Mowing in progress)
         this.ctx.fillStyle = p.color + 'AA';
         p.trail.forEach(t => {
           if (t.x * CELL_SIZE >= startX - CELL_SIZE && t.x * CELL_SIZE <= endX &&
               t.y * CELL_SIZE >= startY - CELL_SIZE && t.y * CELL_SIZE <= endY) {
+            // Trail looks like a fresh cut path
             this.ctx.fillRect(t.x * CELL_SIZE + 4, t.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
           }
         });
 
-        // 3. Mower
+        // 3. Mower Sprite
         this.ctx.save();
         this.ctx.translate(p.x, p.y);
         if (p.direction === 'RIGHT') this.ctx.rotate(Math.PI/2);
         else if (p.direction === 'DOWN') this.ctx.rotate(Math.PI);
         else if (p.direction === 'LEFT') this.ctx.rotate(-Math.PI/2);
         
+        // Mower Body (deck)
         this.ctx.fillStyle = p.color;
-        this.ctx.fillRect(-12, -12, 24, 24);
+        this.ctx.beginPath();
+        this.ctx.roundRect(-14, -12, 28, 24, 4);
+        this.ctx.fill();
+        
+        // Mower engine/center
         this.ctx.fillStyle = '#333';
-        this.ctx.fillRect(-8, -4, 16, 12);
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Handle/Bars
+        this.ctx.strokeStyle = '#444';
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.moveTo(-10, 12);
+        this.ctx.lineTo(-10, 20);
+        this.ctx.lineTo(10, 20);
+        this.ctx.lineTo(10, 12);
+        this.ctx.stroke();
+        
+        // Wheels
+        this.ctx.fillStyle = '#111';
+        this.ctx.fillRect(-16, -10, 4, 8); // front left
+        this.ctx.fillRect(12, -10, 4, 8);  // front right
+        this.ctx.fillRect(-16, 2, 4, 8);   // back left
+        this.ctx.fillRect(12, 2, 4, 8);    // back right
+
         this.ctx.restore();
         
         // 4. Name
