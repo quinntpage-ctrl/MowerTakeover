@@ -175,11 +175,11 @@ export class GameEngine {
 
       const oldCell = this.getCellAt(p.x, p.y);
       
-      // We only allow direction change when perfectly aligned with cell center
-      // For a mockup we'll simplify and allow instant turns, but snap to grid visually for trail
+      // Update direction immediately
       p.direction = p.nextDirection;
 
       // Move player
+      const moveDist = PLAYER_SPEED * dt;
       switch (p.direction) {
         case 'UP': p.y -= moveDist; break;
         case 'DOWN': p.y += moveDist; break;
@@ -187,7 +187,7 @@ export class GameEngine {
         case 'RIGHT': p.x += moveDist; break;
       }
 
-      // Bounds checking
+      // Bounds checking (allow moving across the whole world)
       if (p.x < 0) p.x = 0;
       if (p.x > WORLD_WIDTH) p.x = WORLD_WIDTH;
       if (p.y < 0) p.y = 0;
