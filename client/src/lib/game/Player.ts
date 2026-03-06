@@ -1,4 +1,4 @@
-import { Direction, GRID_SIZE } from './Constants';
+import { Direction, GRID_SIZE, CELL_SIZE } from './Constants';
 
 export interface Point {
   x: number;
@@ -9,18 +9,13 @@ export class PlayerState {
   id: string;
   name: string;
   color: string;
-  
-  // High-precision logical coordinates
   x: number;
   y: number;
-  
   direction: Direction;
   nextDirection: Direction;
-  
   territory: Set<string>; 
   trail: Point[];
   trailSet: Set<string>; 
-  
   isDead: boolean;
   score: number;
   isBot: boolean;
@@ -40,9 +35,9 @@ export class PlayerState {
     this.score = 0;
     this.isBot = isBot;
     
-    // Initial 5x5 spawn zone
-    const gridX = Math.floor(startX / 30);
-    const gridY = Math.floor(startY / 30);
+    // Use CELL_SIZE constant
+    const gridX = Math.floor(startX / CELL_SIZE);
+    const gridY = Math.floor(startY / CELL_SIZE);
     
     this.territory.clear();
     for (let dx = -2; dx <= 2; dx++) {
@@ -54,7 +49,6 @@ export class PlayerState {
         }
       }
     }
-    
     this.updateScore();
   }
 
