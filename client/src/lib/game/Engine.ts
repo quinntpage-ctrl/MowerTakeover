@@ -267,9 +267,9 @@ export class GameEngine {
     // Update camera to follow local player
     const lp = this.players.get(this.localPlayerId);
     if (lp && !lp.isDead) {
-      // Smooth camera follow
-      this.camera.x += (lp.x - this.camera.x) * 0.1;
-      this.camera.y += (lp.y - this.camera.y) * 0.1;
+      // Direct camera follow for better precision in IO games
+      this.camera.x = lp.x;
+      this.camera.y = lp.y;
     }
   }
 
