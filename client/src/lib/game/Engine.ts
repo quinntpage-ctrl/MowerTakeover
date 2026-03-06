@@ -289,22 +289,62 @@ export class GameEngine {
         const gridY = Math.floor(fb.y / CELL_SIZE);
         const key = `${gridX},${gridY}`;
         
-        let burned = false;
+        let hitEnemy = false;
         this.players.forEach(p => {
            if (p.id !== fb.ownerId && p.territory.has(key)) {
-               p.territory.delete(key);
-               p.updateScore();
-               burned = true;
-               
-               // Show burnt ground flash
-               this.claimFlashes.push({
-                   x: gridX,
-                   y: gridY,
-                   alpha: 0.8,
-                   color: '#1f2937' // burnt ash color
-               });
+               hitEnemy = true;
            }
         });
+        
+        if (hitEnemy) {
+            const radius = 2; // 5x5 area explosion
+            for (let dx = -radius; dx <= radius; dx++) {
+                for (let dy = -radius; dy <= radius; dy++) {
+                    const nx = gridX + dx;
+                    const ny = gridY + dy;
+                    const nKey = `${nx},${ny}`;
+                    
+                    let cellBurned = false;
+                    this.players.forEach(p => {
+                        if (p.id !== fb.ownerId && p.territory.has(nKey)) {
+                            p.territory.delete(nKey);
+                            cellBurned = true;
+                        }
+                    });
+                    
+                    if (cellBurned) {
+                        // Show burnt ground flash
+                        this.claimFlashes.push({
+                            x: nx,
+                            y: ny,
+                            alpha: 1.0,
+                            color: '#1f2937' // burnt ash color
+                        });
+                        
+                        // Fire explosion particles for the burned cell
+                        for(let k=0; k<3; k++) {
+                            this.particles.push({
+                                x: nx * CELL_SIZE + CELL_SIZE/2 + (Math.random()-0.5)*CELL_SIZE,
+                                y: ny * CELL_SIZE + CELL_SIZE/2 + (Math.random()-0.5)*CELL_SIZE,
+                                vx: (Math.random() - 0.5) * 100,
+                                vy: (Math.random() - 0.5) * 100 - 30, // drift up
+                                life: 0.5 + Math.random() * 0.5,
+                                maxLife: 1.0,
+                                color: Math.random() > 0.5 ? '#ef4444' : '#f97316',
+                                size: 3 + Math.random() * 4,
+                                type: 'flame'
+                            });
+                        }
+                    }
+                }
+            }
+            
+            this.players.forEach(p => {
+                if (p.id !== fb.ownerId) p.updateScore();
+            });
+            
+            fb.life = 0; // Destroy the fireball on impact
+        }
         
         if (fb.life <= 0 || fb.x < 0 || fb.x > WORLD_WIDTH || fb.y < 0 || fb.y > WORLD_HEIGHT) {
             this.activeFireballs.splice(i, 1);
