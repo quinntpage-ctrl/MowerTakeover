@@ -146,6 +146,10 @@ export class GameEngine {
       if (p.territory.has(cellKey)) {
         // Entering territory - finalize capture if we have a trail
         if (p.trail.length > 0) {
+          // IMPORTANT: First clear the trail from the trailSet to prevent self-collision
+          // with the points we are about to add to territory
+          p.trailSet.clear();
+
           // Add the trail to the territory
           p.trail.forEach(t => {
             p.territory.add(`${t.x},${t.y}`);
@@ -163,13 +167,11 @@ export class GameEngine {
           });
           
           p.trail = [];
-          p.trailSet.clear();
           p.updateScore();
           this.callbacks.onScoreUpdate(p.score);
         }
       } else {
         // Outside territory - check trail collision
-        // Grace period: don't kill if hitting the very last cell we just left
         if (p.trailSet.has(cellKey)) {
           this.killPlayer(p.id);
           return;
