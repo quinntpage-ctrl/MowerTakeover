@@ -39,11 +39,18 @@ export default function Home() {
 
       {/* UI OVERLAY - LEADERBOARD */}
       {gameState === "playing" && (
-        <div className="absolute top-20 md:top-4 right-4 glass-panel rounded-xl p-4 w-40 md:w-48 shadow-lg pointer-events-auto transition-all z-10 max-h-[40vh] md:max-h-[60vh] flex flex-col">
+        <div 
+          className="absolute top-20 md:top-4 right-4 glass-panel rounded-xl p-4 w-40 md:w-48 shadow-lg z-10 max-h-[25vh] md:max-h-[60vh] flex flex-col pointer-events-auto"
+          style={{ touchAction: 'pan-y' }}
+          onPointerDown={(e) => e.stopPropagation()} // Stop game canvas from stealing touch events
+        >
           <h3 className="font-display text-base md:text-lg text-primary-foreground bg-primary -mt-4 -mx-4 mb-3 p-2 rounded-t-xl text-center shadow-sm shrink-0">
             Top Mowers
           </h3>
-          <div className="overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar">
+          <div 
+            className="overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar touch-pan-y h-full" 
+            style={{ overscrollBehavior: 'contain' }}
+          >
             <ul className="space-y-2 pb-2">
               {leaderboard.map((player, idx) => (
                 <li key={idx} className="flex justify-between items-center text-sm font-bold">
