@@ -93,7 +93,8 @@ export class GameEngine {
       this.stateInterval = this.stateInterval * 0.8 + elapsed * 0.2;
     }
     this.lastStateTime = now;
-    this.interpFactor = 0;
+
+    const prevFactor = this.interpFactor;
 
     for (const p of players) {
       const prevTerrSet = this.prevTerritories.get(p.id);
@@ -112,8 +113,9 @@ export class GameEngine {
 
       const existing = this.interpPositions.get(p.id);
       if (existing) {
-        existing.prevX = existing.prevX + (existing.targetX - existing.prevX) * Math.min(1, this.interpFactor);
-        existing.prevY = existing.prevY + (existing.targetY - existing.prevY) * Math.min(1, this.interpFactor);
+        const t = Math.min(1, prevFactor);
+        existing.prevX = existing.prevX + (existing.targetX - existing.prevX) * t;
+        existing.prevY = existing.prevY + (existing.targetY - existing.prevY) * t;
         existing.targetX = p.x;
         existing.targetY = p.y;
         existing.prevDirection = existing.targetDirection;
@@ -126,6 +128,8 @@ export class GameEngine {
         });
       }
     }
+
+    this.interpFactor = 0;
 
     const currentIds = new Set(players.map(p => p.id));
     for (const [id] of this.prevTerritories) {
