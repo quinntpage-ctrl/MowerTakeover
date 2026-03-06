@@ -284,17 +284,36 @@ export class GameEngine {
         fb.y += fb.vy * dt;
         fb.life -= dt;
         
-        // Burn territory
+        // Burn territory & check player hits
         const gridX = Math.floor(fb.x / CELL_SIZE);
         const gridY = Math.floor(fb.y / CELL_SIZE);
         const key = `${gridX},${gridY}`;
         
         let hitEnemy = false;
+        
+        // Check direct player hits first
         this.players.forEach(p => {
-           if (p.id !== fb.ownerId && p.territory.has(key)) {
-               hitEnemy = true;
-           }
+            if (p.id !== fb.ownerId && !p.isDead) {
+                // Check if fireball is within hitting distance of a player (20px radius)
+                const dx = p.x - fb.x;
+                const dy = p.y - fb.y;
+                const dist2 = dx*dx + dy*dy;
+                
+                if (dist2 < 400) { // 20px squared
+                    hitEnemy = true;
+                    this.killPlayer(p.id, "hit by a fireball!");
+                }
+            }
         });
+        
+        // If not hit player directly, check territory
+        if (!hitEnemy) {
+            this.players.forEach(p => {
+               if (p.id !== fb.ownerId && p.territory.has(key)) {
+                   hitEnemy = true;
+               }
+            });
+        }
         
         if (hitEnemy) {
             const radius = 2; // 5x5 area explosion
