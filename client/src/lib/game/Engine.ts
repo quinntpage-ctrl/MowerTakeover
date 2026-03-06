@@ -31,6 +31,23 @@ interface ClaimFlash {
   color: string;
 }
 
+interface Fireball {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  ownerId: string;
+  life: number;
+}
+
+interface Collectible {
+  id: string;
+  x: number;
+  y: number;
+  type: 'fireball';
+}
+
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -49,6 +66,9 @@ export class GameEngine {
 
   private particles: Particle[] = [];
   private claimFlashes: ClaimFlash[] = [];
+  
+  private collectibles: Map<string, Collectible> = new Map();
+  private activeFireballs: Fireball[] = [];
 
   private trailType: "grass" | "flame" | "star" | "smile" = "grass";
 
@@ -67,6 +87,22 @@ export class GameEngine {
     this.initGame(playerName, playerColor);
     this.spawnBots(5);
     this.setupInputs();
+    // Spawn some initial collectibles
+    this.spawnCollectibles(15);
+  }
+
+  private spawnCollectibles(count: number) {
+      for (let i = 0; i < count; i++) {
+          const id = `col_${Math.random().toString(36).substr(2, 9)}`;
+          // Position at exact cell center, avoiding edges
+          const rx = Math.random() * (WORLD_WIDTH * 0.9) + (WORLD_WIDTH * 0.05);
+          const ry = Math.random() * (WORLD_HEIGHT * 0.9) + (WORLD_HEIGHT * 0.05);
+          
+          const x = Math.floor(rx / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+          const y = Math.floor(ry / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+          
+          this.collectibles.set(id, { id, x, y, type: 'fireball' });
+      }
   }
 
   private spawnBots(count: number) {
@@ -172,9 +208,42 @@ export class GameEngine {
         case 'arrowdown': case 's': this.setPlayerDirection('DOWN'); break;
         case 'arrowleft': case 'a': this.setPlayerDirection('LEFT'); break;
         case 'arrowright': case 'd': this.setPlayerDirection('RIGHT'); break;
+        case ' ': 
+        case 'enter':
+            this.shootFireball(); 
+            break;
       }
     };
     window.addEventListener('keydown', handleKey);
+  }
+
+  private shootFireball() {
+      const p = this.players.get(this.localPlayerId);
+      if (!p || p.isDead || p.fireballs <= 0) return;
+      
+      p.fireballs--;
+      if (this.callbacks.onFireballsUpdate) {
+          this.callbacks.onFireballsUpdate(p.fireballs);
+      }
+      
+      const speed = 400; // pixels per second
+      let vx = 0;
+      let vy = 0;
+      
+      if (p.direction === 'UP') vy = -speed;
+      else if (p.direction === 'DOWN') vy = speed;
+      else if (p.direction === 'LEFT') vx = -speed;
+      else if (p.direction === 'RIGHT') vx = speed;
+      
+      this.activeFireballs.push({
+          id: `fb_${Date.now()}`,
+          x: p.x,
+          y: p.y,
+          vx: vx,
+          vy: vy,
+          ownerId: p.id,
+          life: 3.0 // lives for 3 seconds
+      });
   }
 
   private getCellAt(x: number, y: number): Point {
@@ -204,6 +273,40 @@ export class GameEngine {
       if (flash.alpha <= 0) {
         this.claimFlashes.splice(i, 1);
       }
+    }
+
+    // Update active fireballs
+    for (let i = this.activeFireballs.length - 1; i >= 0; i--) {
+        const fb = this.activeFireballs[i];
+        fb.x += fb.vx * dt;
+        fb.y += fb.vy * dt;
+        fb.life -= dt;
+        
+        // Burn territory
+        const gridX = Math.floor(fb.x / CELL_SIZE);
+        const gridY = Math.floor(fb.y / CELL_SIZE);
+        const key = `${gridX},${gridY}`;
+        
+        let burned = false;
+        this.players.forEach(p => {
+           if (p.id !== fb.ownerId && p.territory.has(key)) {
+               p.territory.delete(key);
+               p.updateScore();
+               burned = true;
+               
+               // Show burnt ground flash
+               this.claimFlashes.push({
+                   x: gridX,
+                   y: gridY,
+                   alpha: 0.8,
+                   color: '#1f2937' // burnt ash color
+               });
+           }
+        });
+        
+        if (fb.life <= 0 || fb.x < 0 || fb.x > WORLD_WIDTH || fb.y < 0 || fb.y > WORLD_HEIGHT) {
+            this.activeFireballs.splice(i, 1);
+        }
     }
 
     this.players.forEach(p => {
@@ -290,10 +393,36 @@ export class GameEngine {
           return;
       }
 
-
       const newCell = this.getCellAt(p.x, p.y);
       const cellKey = `${newCell.x},${newCell.y}`;
       const oldCellKey = `${oldCell.x},${oldCell.y}`;
+
+      // Pick up collectibles
+      this.collectibles.forEach((col, colId) => {
+         const dx = p.x - col.x;
+         const dy = p.y - col.y;
+         const distSq = dx*dx + dy*dy;
+         
+         if (distSq < 400) { // 20px radius
+             if (col.type === 'fireball') {
+                 p.fireballs++;
+                 
+                 // Update HUD for local player
+                 if (p.id === this.localPlayerId && this.callbacks.onFireballsUpdate) {
+                     this.callbacks.onFireballsUpdate(p.fireballs);
+                 }
+             }
+             this.collectibles.delete(colId);
+             
+             // Flash effect
+             this.claimFlashes.push({
+                 x: Math.floor(col.x / CELL_SIZE),
+                 y: Math.floor(col.y / CELL_SIZE),
+                 alpha: 1.0,
+                 color: '#f97316'
+             });
+         }
+      });
 
       // Ensure we don't kill the player on the exact frame they step out of their territory
       if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
@@ -836,6 +965,36 @@ export class GameEngine {
         drawOuterLogo(WORLD_WIDTH + 150, py, Math.PI / 2); // Right
     }
 
+    // Draw Collectibles
+    this.collectibles.forEach(col => {
+      if (col.x >= startX && col.x <= endX && col.y >= startY && col.y <= endY) {
+         this.ctx.save();
+         this.ctx.translate(col.x, col.y);
+         
+         // Bobbing animation based on timestamp
+         const bobY = Math.sin(this.lastTimestamp / 200) * 4;
+         this.ctx.translate(0, bobY);
+         
+         if (col.type === 'fireball') {
+             // Glowing fireball powerup
+             this.ctx.shadowColor = '#f97316';
+             this.ctx.shadowBlur = 15;
+             
+             this.ctx.fillStyle = '#ef4444';
+             this.ctx.beginPath();
+             this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
+             this.ctx.fill();
+             
+             this.ctx.fillStyle = '#eab308';
+             this.ctx.beginPath();
+             this.ctx.arc(0, 0, 4, 0, Math.PI * 2);
+             this.ctx.fill();
+         }
+         
+         this.ctx.restore();
+      }
+    });
+
     this.players.forEach(p => {
       if (p.isDead && p.deathAlpha <= 0) return;
 
@@ -1011,6 +1170,46 @@ export class GameEngine {
             
             this.ctx.restore();
         }
+    });
+
+    // Draw active fireballs
+    this.activeFireballs.forEach(fb => {
+      if (fb.x >= startX && fb.x <= endX && fb.y >= startY && fb.y <= endY) {
+         this.ctx.save();
+         this.ctx.translate(fb.x, fb.y);
+         
+         // Glowing effect
+         this.ctx.shadowColor = '#f97316';
+         this.ctx.shadowBlur = 10;
+         
+         this.ctx.fillStyle = '#ef4444';
+         this.ctx.beginPath();
+         this.ctx.arc(0, 0, 10, 0, Math.PI * 2);
+         this.ctx.fill();
+         
+         this.ctx.fillStyle = '#eab308';
+         this.ctx.beginPath();
+         this.ctx.arc(0, 0, 6, 0, Math.PI * 2);
+         this.ctx.fill();
+
+         this.ctx.restore();
+         
+         // Add flame particles
+         if (Math.random() < 0.5) {
+            this.particles.push({
+               x: fb.x + (Math.random() - 0.5) * 10,
+               y: fb.y + (Math.random() - 0.5) * 10,
+               vx: (Math.random() - 0.5) * 20,
+               vy: -20 - Math.random() * 20,
+               life: Math.random() * 0.3 + 0.2,
+               maxLife: 0.5,
+               color: ['#f97316', '#ef4444', '#eab308'][Math.floor(Math.random() * 3)],
+               size: Math.random() * 4 + 2,
+               rotation: Math.random() * Math.PI * 2,
+               vRot: (Math.random() - 0.5) * 5
+            });
+         }
+      }
     });
 
     this.ctx.restore();

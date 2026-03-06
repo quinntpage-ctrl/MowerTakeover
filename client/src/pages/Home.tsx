@@ -9,7 +9,8 @@ export default function Home() {
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameover">("menu");
   const [playerName, setPlayerName] = useState("");
   const [score, setScore] = useState(0);
-  const [leaderboard, setLeaderboard] = useState<{name: string, score: number, color: string}[]>([]);
+  const [fireballs, setFireballs] = useState(0);
+  const [leaderboard, setLeaderboard] = useState<{id: string, name: string, score: number, color: string}[]>([]);
   const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
   const [trailType, setTrailType] = useState<"grass" | "flame" | "star" | "smile">("grass");
 
@@ -39,6 +40,7 @@ export default function Home() {
           onGameOver={handleGameOver}
           onScoreUpdate={setScore}
           onLeaderboardUpdate={setLeaderboard}
+          onFireballsUpdate={setFireballs}
         />
       )}
 
@@ -74,15 +76,31 @@ export default function Home() {
         </div>
       )}
 
-      {/* UI OVERLAY - SCORE */}
+      {/* UI OVERLAY - SCORE AND FIREBALLS */}
       {gameState === "playing" && (
-        <div className="absolute top-4 left-4 glass-panel rounded-full px-6 py-2 shadow-lg pointer-events-none flex items-center gap-4">
-          <img src="/logo.svg" alt="Logo" className="h-6 opacity-80" />
-          <div className="h-4 w-px bg-primary/20"></div>
-          <div className="text-2xl font-display text-primary flex items-center gap-2">
-            <span>{score.toFixed(1)}%</span>
-            <span className="text-sm font-sans text-muted-foreground uppercase tracking-widest">Captured</span>
-          </div>
+        <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
+            <div className="glass-panel rounded-full px-6 py-2 shadow-lg flex items-center gap-4">
+              <img src="/logo.svg" alt="Logo" className="h-6 opacity-80" />
+              <div className="h-4 w-px bg-primary/20"></div>
+              <div className="text-2xl font-display text-primary flex items-center gap-2">
+                <span>{score.toFixed(1)}%</span>
+                <span className="text-sm font-sans text-muted-foreground uppercase tracking-widest hidden md:inline">Captured</span>
+              </div>
+            </div>
+            
+            {fireballs > 0 && (
+                <div className="glass-panel rounded-full px-6 py-2 shadow-lg flex items-center gap-3 animate-in slide-in-from-left-4 fade-in">
+                    <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-orange-100 shadow-inner">
+                        <Flame className="w-5 h-5 text-orange-500 animate-pulse" />
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-white">
+                            {fireballs}
+                        </span>
+                    </div>
+                    <span className="text-sm font-bold text-foreground">
+                        Press <kbd className="bg-white/50 px-1.5 py-0.5 rounded border border-border/50 mx-1 shadow-sm text-xs font-mono">SPACE</kbd> to shoot!
+                    </span>
+                </div>
+            )}
         </div>
       )}
 

@@ -7,7 +7,8 @@ interface GameCanvasProps {
   trailType?: "grass" | "flame" | "star" | "smile";
   onGameOver: (score: number) => void;
   onScoreUpdate: (score: number) => void;
-  onLeaderboardUpdate: (leaderboard: {name: string, score: number, color: string}[]) => void;
+  onLeaderboardUpdate: (leaderboard: {id: string, name: string, score: number, color: string}[]) => void;
+  onFireballsUpdate?: (count: number) => void;
 }
 
 export default function GameCanvas({ 
@@ -20,12 +21,12 @@ export default function GameCanvas({
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
-  const callbacksRef = useRef({ onGameOver, onScoreUpdate, onLeaderboardUpdate });
+  const callbacksRef = useRef({ onGameOver, onScoreUpdate, onLeaderboardUpdate, onFireballsUpdate });
 
   // Keep callbacks up to date without triggering engine recreation
   useEffect(() => {
-    callbacksRef.current = { onGameOver, onScoreUpdate, onLeaderboardUpdate };
-  }, [onGameOver, onScoreUpdate, onLeaderboardUpdate]);
+    callbacksRef.current = { onGameOver, onScoreUpdate, onLeaderboardUpdate, onFireballsUpdate };
+  }, [onGameOver, onScoreUpdate, onLeaderboardUpdate, onFireballsUpdate]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -39,7 +40,8 @@ export default function GameCanvas({
       {
         onGameOver: (score) => callbacksRef.current.onGameOver(score),
         onScoreUpdate: (score) => callbacksRef.current.onScoreUpdate(score),
-        onLeaderboardUpdate: (board) => callbacksRef.current.onLeaderboardUpdate(board)
+        onLeaderboardUpdate: (board) => callbacksRef.current.onLeaderboardUpdate(board),
+        onFireballsUpdate: (count) => callbacksRef.current.onFireballsUpdate?.(count)
       }
     );
     
