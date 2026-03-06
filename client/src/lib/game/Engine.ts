@@ -35,7 +35,32 @@ export class GameEngine {
     this.callbacks = callbacks;
     
     this.initGame(playerName);
+    this.spawnBots(5);
     this.setupInputs();
+  }
+
+  private spawnBots(count: number) {
+    for (let i = 0; i < count; i++) {
+      const botId = `bot_${i}`;
+      const name = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+      const color = PLAYER_COLORS[(i + 1) % PLAYER_COLORS.length]; // skip index 0
+      
+      // Random position far from center and each other
+      const rx = Math.random() * (WORLD_WIDTH * 0.8) + (WORLD_WIDTH * 0.1);
+      const ry = Math.random() * (WORLD_HEIGHT * 0.8) + (WORLD_HEIGHT * 0.1);
+      
+      const startX = Math.floor(rx / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+      const startY = Math.floor(ry / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+      
+      const bot = new PlayerState(botId, name, color, startX, startY, true);
+      
+      const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+      const dir = dirs[Math.floor(Math.random() * dirs.length)];
+      bot.direction = dir;
+      bot.nextDirection = dir;
+      
+      this.players.set(botId, bot);
+    }
   }
 
   private initGame(playerName: string) {
@@ -130,122 +155,194 @@ export class GameEngine {
   }
 
   private update(dt: number) {
-    const p = this.players.get(this.localPlayerId);
-    if (!p || p.isDead) return;
+    this.players.forEach(p => {
+      if (p.isDead) return;
 
-    const oldCell = this.getCellAt(p.x, p.y);
-    
-    const moveDist = PLAYER_SPEED * dt;
+      // Handle bot logic
+      if (p.isBot) {
+        this.updateBot(p);
+      }
 
-    // Strict Splix.io style movement:
-    // Move along current axis. We only change direction if we are near the center of a cell.
-    const cx = Math.floor(p.x / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
-    const cy = Math.floor(p.y / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
-    
-    // Are we passing through the center of a cell this frame?
-    const isHorizontal = p.direction === 'LEFT' || p.direction === 'RIGHT';
-    const distToCenter = isHorizontal ? Math.abs(p.x - cx) : Math.abs(p.y - cy);
-    
-    // Only allow turning if we are moving towards the center, and the distance to center is less than our move distance
-    // We also need to check if we are moving the correct direction relative to the center
-    const movingTowardsCenter = 
-      (p.direction === 'RIGHT' && p.x <= cx) ||
-      (p.direction === 'LEFT' && p.x >= cx) ||
-      (p.direction === 'DOWN' && p.y <= cy) ||
-      (p.direction === 'UP' && p.y >= cy);
-
-    const passingCenter = movingTowardsCenter && distToCenter <= moveDist;
-
-    if (p.nextDirection !== p.direction && passingCenter) {
-      // Snap to center and turn
-      p.x = cx;
-      p.y = cy;
-      p.direction = p.nextDirection;
+      const oldCell = this.getCellAt(p.x, p.y);
       
-      // Move remaining distance in new direction
-      const remainingDist = moveDist - distToCenter;
-      if (p.direction === 'UP') p.y -= remainingDist;
-      else if (p.direction === 'DOWN') p.y += remainingDist;
-      else if (p.direction === 'LEFT') p.x -= remainingDist;
-      else if (p.direction === 'RIGHT') p.x += remainingDist;
-    } else {
-      // Normal movement
-      if (p.direction === 'UP') p.y -= moveDist;
-      else if (p.direction === 'DOWN') p.y += moveDist;
-      else if (p.direction === 'LEFT') p.x -= moveDist;
-      else if (p.direction === 'RIGHT') p.x += moveDist;
-    }
+      const moveDist = PLAYER_SPEED * dt;
 
-    // Strict bounds
-    p.x = Math.max(0, Math.min(WORLD_WIDTH - 0.001, p.x));
-    p.y = Math.max(0, Math.min(WORLD_HEIGHT - 0.001, p.y));
-
-    const newCell = this.getCellAt(p.x, p.y);
-    const cellKey = `${newCell.x},${newCell.y}`;
-    const oldCellKey = `${oldCell.x},${oldCell.y}`;
-
-    // Ensure we don't kill the player on the exact frame they step out of their territory
-    if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
-      const isEnteringSafeZone = p.territory.has(cellKey);
+      // Strict Splix.io style movement:
+      // Move along current axis. We only change direction if we are near the center of a cell.
+      const cx = Math.floor(p.x / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+      const cy = Math.floor(p.y / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
       
-      if (isEnteringSafeZone) {
-        if (p.trail.length > 0) {
-          // Add the final cell to explicitly close the geometry
-          p.trail.push({...newCell});
-          
-          // 1. Convert ALL trail segments to territory
-          p.trail.forEach(t => p.territory.add(`${t.x},${t.y}`));
-          
-          // 2. Clear trail immediately to prevent self-collision
-          p.trailSet.clear();
-          p.trail = [];
-          
-          // 3. Flood fill to capture internal areas
-          const newlyCaptured = captureEnclosedAreas(p.territory);
-          
-          newlyCaptured.forEach(k => {
-            p.territory.add(k);
-            this.players.forEach(other => {
-              if (other.id !== p.id) other.territory.delete(k);
-            });
-          });
-          
-          p.updateScore();
-          this.callbacks.onScoreUpdate(p.score);
-        }
+      // Are we passing through the center of a cell this frame?
+      const isHorizontal = p.direction === 'LEFT' || p.direction === 'RIGHT';
+      const distToCenter = isHorizontal ? Math.abs(p.x - cx) : Math.abs(p.y - cy);
+      
+      // Only allow turning if we are moving towards the center, and the distance to center is less than our move distance
+      // We also need to check if we are moving the correct direction relative to the center
+      const movingTowardsCenter = 
+        (p.direction === 'RIGHT' && p.x <= cx) ||
+        (p.direction === 'LEFT' && p.x >= cx) ||
+        (p.direction === 'DOWN' && p.y <= cy) ||
+        (p.direction === 'UP' && p.y >= cy);
+
+      const passingCenter = movingTowardsCenter && distToCenter <= moveDist;
+
+      if (p.nextDirection !== p.direction && passingCenter) {
+        // Snap to center and turn
+        p.x = cx;
+        p.y = cy;
+        p.direction = p.nextDirection;
+        
+        // Move remaining distance in new direction
+        const remainingDist = moveDist - distToCenter;
+        if (p.direction === 'UP') p.y -= remainingDist;
+        else if (p.direction === 'DOWN') p.y += remainingDist;
+        else if (p.direction === 'LEFT') p.x -= remainingDist;
+        else if (p.direction === 'RIGHT') p.x += remainingDist;
       } else {
-        // HOSTILE TERRITORY
-        const isSelfCollision = p.trailSet.has(cellKey);
-        
-        // IMMUNITY: Allow sharp turns by ignoring the last 3 points
-        const isRecentTrail = p.trail.slice(-3).some(t => t.x === newCell.x && t.y === newCell.y);
+        // Normal movement
+        if (p.direction === 'UP') p.y -= moveDist;
+        else if (p.direction === 'DOWN') p.y += moveDist;
+        else if (p.direction === 'LEFT') p.x -= moveDist;
+        else if (p.direction === 'RIGHT') p.x += moveDist;
+      }
 
-        // Ensure we don't kill the player on the exact frame they step out of their territory
-        const oldCellKey = `${oldCell.x},${oldCell.y}`;
-        const justLeftSafeZone = p.territory.has(oldCellKey);
+      // Strict bounds
+      p.x = Math.max(0, Math.min(WORLD_WIDTH - 0.001, p.x));
+      p.y = Math.max(0, Math.min(WORLD_HEIGHT - 0.001, p.y));
 
-        if (isSelfCollision && !isRecentTrail && !justLeftSafeZone) {
-          this.killPlayer(p.id, 'self-collision');
-          return;
-        }
-        
-        // Check if we hit someone else's trail
-        this.players.forEach((otherP, otherPid) => {
-          if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
-            this.killPlayer(otherPid, 'killed-by-other');
+      // Handle map edge collision for bots (and players)
+      if (p.x === 0 || p.x >= WORLD_WIDTH - 0.01 || p.y === 0 || p.y >= WORLD_HEIGHT - 0.01) {
+          if (!p.isBot && p.id === this.localPlayerId) {
+             this.killPlayer(p.id, 'wall-collision');
+             return;
+          } else if (p.isBot) {
+             // Force bot to turn around if it hits a wall
+             if (p.x === 0) p.nextDirection = 'RIGHT';
+             else if (p.x >= WORLD_WIDTH - 0.01) p.nextDirection = 'LEFT';
+             else if (p.y === 0) p.nextDirection = 'DOWN';
+             else if (p.y >= WORLD_HEIGHT - 0.01) p.nextDirection = 'UP';
           }
-        });
+      }
 
-        // Add current cell to trail
-        // To handle crossing into the safezone perfectly, only record non-safezone steps
-        p.trail.push({...newCell});
-        p.trailSet.add(cellKey);
+
+      const newCell = this.getCellAt(p.x, p.y);
+      const cellKey = `${newCell.x},${newCell.y}`;
+      const oldCellKey = `${oldCell.x},${oldCell.y}`;
+
+      // Ensure we don't kill the player on the exact frame they step out of their territory
+      if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
+        const isEnteringSafeZone = p.territory.has(cellKey);
+        
+        if (isEnteringSafeZone) {
+          if (p.trail.length > 0) {
+            // Add the final cell to explicitly close the geometry
+            p.trail.push({...newCell});
+            
+            // 1. Convert ALL trail segments to territory
+            p.trail.forEach(t => p.territory.add(`${t.x},${t.y}`));
+            
+            // 2. Clear trail immediately to prevent self-collision
+            p.trailSet.clear();
+            p.trail = [];
+            
+            // 3. Flood fill to capture internal areas
+            const newlyCaptured = captureEnclosedAreas(p.territory);
+            
+            newlyCaptured.forEach(k => {
+              p.territory.add(k);
+              this.players.forEach(other => {
+                if (other.id !== p.id) other.territory.delete(k);
+              });
+            });
+            
+            p.updateScore();
+            if (p.id === this.localPlayerId) {
+               this.callbacks.onScoreUpdate(p.score);
+            }
+          }
+        } else {
+          // HOSTILE TERRITORY
+          const isSelfCollision = p.trailSet.has(cellKey);
+          
+          // IMMUNITY: Allow sharp turns by ignoring the last 3 points
+          const isRecentTrail = p.trail.slice(-3).some(t => t.x === newCell.x && t.y === newCell.y);
+
+          // Ensure we don't kill the player on the exact frame they step out of their territory
+          const justLeftSafeZone = p.territory.has(oldCellKey);
+
+          if (isSelfCollision && !isRecentTrail && !justLeftSafeZone) {
+            this.killPlayer(p.id, 'self-collision');
+            return;
+          }
+          
+          // Check if we hit someone else's trail
+          this.players.forEach((otherP, otherPid) => {
+            if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
+              this.killPlayer(otherPid, 'killed-by-other');
+            }
+          });
+
+          // Add current cell to trail
+          // To handle crossing into the safezone perfectly, only record non-safezone steps
+          p.trail.push({...newCell});
+          p.trailSet.add(cellKey);
+        }
+      }
+    });
+
+    const lp = this.players.get(this.localPlayerId);
+    if (lp) {
+      this.camera.x = lp.x;
+      this.camera.y = lp.y;
+    }
+  }
+
+  private updateBot(bot: PlayerState) {
+    // Simple bot logic: 
+    // Randomly change direction occasionally, but ensure they return to base if trail gets long
+    
+    // 5% chance per frame to consider a turn if they are near the center of a cell
+    if (Math.random() < 0.05) {
+      const cx = Math.floor(bot.x / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+      const cy = Math.floor(bot.y / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+      
+      const isHorizontal = bot.direction === 'LEFT' || bot.direction === 'RIGHT';
+      const distToCenter = isHorizontal ? Math.abs(bot.x - cx) : Math.abs(bot.y - cy);
+      
+      if (distToCenter < 2) {
+        // Too far from home? Turn back
+        if (bot.trail.length > 15) {
+           // Find a path back to territory
+           // Just try to move back towards the center of their territory for simplicity
+           let targetX = 0;
+           let targetY = 0;
+           bot.territory.forEach(k => {
+               const [tx, ty] = k.split(',').map(Number);
+               targetX += tx;
+               targetY += ty;
+           });
+           if (bot.territory.size > 0) {
+               targetX = (targetX / bot.territory.size) * CELL_SIZE;
+               targetY = (targetY / bot.territory.size) * CELL_SIZE;
+               
+               if (Math.abs(bot.x - targetX) > Math.abs(bot.y - targetY)) {
+                   bot.nextDirection = bot.x > targetX ? 'LEFT' : 'RIGHT';
+               } else {
+                   bot.nextDirection = bot.y > targetY ? 'UP' : 'DOWN';
+               }
+           }
+        } else {
+           // Random turn
+           const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+           // Prevent 180s
+           const opposite = {
+               'UP': 'DOWN', 'DOWN': 'UP', 'LEFT': 'RIGHT', 'RIGHT': 'LEFT'
+           };
+           const validDirs = dirs.filter(d => d !== opposite[bot.direction]);
+           bot.nextDirection = validDirs[Math.floor(Math.random() * validDirs.length)];
+        }
       }
     }
-
-    // Camera follow
-    this.camera.x = p.x;
-    this.camera.y = p.y;
   }
 
   private killPlayer(pid: string, reason: string = 'unknown') {
@@ -288,46 +385,47 @@ export class GameEngine {
     }
     this.ctx.stroke();
 
-    const lp = this.players.get(this.localPlayerId);
-    if (lp && !lp.isDead) {
-      // 1. Territory
-      this.ctx.fillStyle = lp.color + '44';
-      lp.territory.forEach(key => {
-        const [cx, cy] = key.split(',').map(Number);
-        if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
-            cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
-          this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        }
-      });
+    this.players.forEach(p => {
+      if (!p.isDead) {
+        // 1. Territory
+        this.ctx.fillStyle = p.color + '44';
+        p.territory.forEach(key => {
+          const [cx, cy] = key.split(',').map(Number);
+          if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
+              cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
+            this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          }
+        });
 
-      // 2. Trail
-      this.ctx.fillStyle = lp.color + 'AA';
-      lp.trail.forEach(t => {
-        if (t.x * CELL_SIZE >= startX - CELL_SIZE && t.x * CELL_SIZE <= endX &&
-            t.y * CELL_SIZE >= startY - CELL_SIZE && t.y * CELL_SIZE <= endY) {
-          this.ctx.fillRect(t.x * CELL_SIZE + 4, t.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
-        }
-      });
+        // 2. Trail
+        this.ctx.fillStyle = p.color + 'AA';
+        p.trail.forEach(t => {
+          if (t.x * CELL_SIZE >= startX - CELL_SIZE && t.x * CELL_SIZE <= endX &&
+              t.y * CELL_SIZE >= startY - CELL_SIZE && t.y * CELL_SIZE <= endY) {
+            this.ctx.fillRect(t.x * CELL_SIZE + 4, t.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+          }
+        });
 
-      // 3. Mower
-      this.ctx.save();
-      this.ctx.translate(lp.x, lp.y);
-      if (lp.direction === 'RIGHT') this.ctx.rotate(Math.PI/2);
-      else if (lp.direction === 'DOWN') this.ctx.rotate(Math.PI);
-      else if (lp.direction === 'LEFT') this.ctx.rotate(-Math.PI/2);
-      
-      this.ctx.fillStyle = lp.color;
-      this.ctx.fillRect(-12, -12, 24, 24);
-      this.ctx.fillStyle = '#333';
-      this.ctx.fillRect(-8, -4, 16, 12);
-      this.ctx.restore();
-      
-      // 4. Name
-      this.ctx.fillStyle = '#000';
-      this.ctx.font = 'bold 12px Nunito';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(lp.name, lp.x, lp.y - 25);
-    }
+        // 3. Mower
+        this.ctx.save();
+        this.ctx.translate(p.x, p.y);
+        if (p.direction === 'RIGHT') this.ctx.rotate(Math.PI/2);
+        else if (p.direction === 'DOWN') this.ctx.rotate(Math.PI);
+        else if (p.direction === 'LEFT') this.ctx.rotate(-Math.PI/2);
+        
+        this.ctx.fillStyle = p.color;
+        this.ctx.fillRect(-12, -12, 24, 24);
+        this.ctx.fillStyle = '#333';
+        this.ctx.fillRect(-8, -4, 16, 12);
+        this.ctx.restore();
+        
+        // 4. Name
+        this.ctx.fillStyle = '#000';
+        this.ctx.font = 'bold 12px Nunito';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(p.name, p.x, p.y - 25);
+      }
+    });
 
     this.ctx.restore();
   }
