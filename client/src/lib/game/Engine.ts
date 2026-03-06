@@ -111,6 +111,38 @@ export class GameEngine {
     this.camera.y = localPlayer.y;
   }
 
+  private drawCrown(ctx: CanvasRenderingContext2D, color: string) {
+      ctx.save();
+      // Translate to be centered slightly up on the deck
+      ctx.translate(0, -2);
+      ctx.scale(0.8, 0.8);
+      
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      // Draw a 3-point crown
+      ctx.moveTo(-10, 8); // bottom left
+      ctx.lineTo(10, 8);  // bottom right
+      ctx.lineTo(12, -6); // right point
+      ctx.lineTo(5, 0);   // inner right
+      ctx.lineTo(0, -10); // top point
+      ctx.lineTo(-5, 0);  // inner left
+      ctx.lineTo(-12, -6);// left point
+      ctx.closePath();
+      
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      
+      // Little jewels/circles on points
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(12, -6, 2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, -10, 2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-12, -6, 2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      
+      ctx.restore();
+  }
+
   public resize(width: number, height: number) {
     this.width = width;
     this.height = height;
