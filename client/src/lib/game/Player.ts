@@ -40,8 +40,9 @@ export class PlayerState {
     const gridY = Math.floor(startY / CELL_SIZE);
     
     this.territory.clear();
-    for (let dx = -2; dx <= 2; dx++) {
-      for (let dy = -2; dy <= 2; dy++) {
+    // Start with a 7x7 zone to ensure it's large enough to safely turn around in
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dy = -3; dy <= 3; dy++) {
         const nx = gridX + dx;
         const ny = gridY + dy;
         if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {

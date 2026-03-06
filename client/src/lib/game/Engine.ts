@@ -6,7 +6,7 @@ import {
 import { captureEnclosedAreas } from './Utils';
 
 interface GameCallbacks {
-  onGameOver: (score: number) => void;
+  onGameOver: (score: number, reason?: string) => void;
   onScoreUpdate: (score: number) => void;
   onLeaderboardUpdate: (board: {name: string, score: number, color: string}[]) => void;
 }
@@ -172,13 +172,15 @@ export class GameEngine {
 
     const newCell = this.getCellAt(p.x, p.y);
     const cellKey = `${newCell.x},${newCell.y}`;
+    const oldCellKey = `${oldCell.x},${oldCell.y}`;
 
+    // Ensure we don't kill the player on the exact frame they step out of their territory
     if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
       const isEnteringSafeZone = p.territory.has(cellKey);
       
       if (isEnteringSafeZone) {
         if (p.trail.length > 0) {
-          // Add the safe zone entry point to close the loop perfectly
+          // Add the final cell to explicitly close the geometry
           p.trail.push({...newCell});
           
           // 1. Convert ALL trail segments to territory
@@ -189,8 +191,8 @@ export class GameEngine {
           p.trail = [];
           
           // 3. Flood fill to capture internal areas
-          const territoryCopy = new Set(p.territory);
-          const newlyCaptured = captureEnclosedAreas(territoryCopy);
+          const newlyCaptured = captureEnclosedAreas(p.territory);
+          
           newlyCaptured.forEach(k => {
             p.territory.add(k);
             this.players.forEach(other => {
@@ -205,23 +207,27 @@ export class GameEngine {
         // HOSTILE TERRITORY
         const isSelfCollision = p.trailSet.has(cellKey);
         
-        // IMMUNITY: Allow sharp turns by ignoring the last few points
-        // Because of high speed and cell transitions, we need a buffer
+        // IMMUNITY: Allow sharp turns by ignoring the last 3 points
         const isRecentTrail = p.trail.slice(-3).some(t => t.x === newCell.x && t.y === newCell.y);
 
-        if (isSelfCollision && !isRecentTrail) {
-          this.killPlayer(p.id);
+        // Ensure we don't kill the player on the exact frame they step out of their territory
+        const oldCellKey = `${oldCell.x},${oldCell.y}`;
+        const justLeftSafeZone = p.territory.has(oldCellKey);
+
+        if (isSelfCollision && !isRecentTrail && !justLeftSafeZone) {
+          this.killPlayer(p.id, 'self-collision');
           return;
         }
         
         // Check if we hit someone else's trail
         this.players.forEach((otherP, otherPid) => {
           if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
-            this.killPlayer(otherPid);
+            this.killPlayer(otherPid, 'killed-by-other');
           }
         });
 
         // Add current cell to trail
+        // To handle crossing into the safezone perfectly, only record non-safezone steps
         p.trail.push({...newCell});
         p.trailSet.add(cellKey);
       }
@@ -232,13 +238,14 @@ export class GameEngine {
     this.camera.y = p.y;
   }
 
-  private killPlayer(pid: string) {
+  private killPlayer(pid: string, reason: string = 'unknown') {
     const p = this.players.get(pid);
     if (!p) return;
     p.isDead = true;
     p.trail = [];
     p.trailSet.clear();
-    this.callbacks.onGameOver(p.score);
+    console.log(`Player ${pid} killed: ${reason}`);
+    this.callbacks.onGameOver(p.score, reason);
   }
 
   private draw() {

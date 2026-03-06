@@ -16,6 +16,12 @@ export default function GameCanvas({
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
+  const callbacksRef = useRef({ onGameOver, onScoreUpdate, onLeaderboardUpdate });
+
+  // Keep callbacks up to date without triggering engine recreation
+  useEffect(() => {
+    callbacksRef.current = { onGameOver, onScoreUpdate, onLeaderboardUpdate };
+  }, [onGameOver, onScoreUpdate, onLeaderboardUpdate]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -25,9 +31,9 @@ export default function GameCanvas({
       canvasRef.current, 
       playerName,
       {
-        onGameOver: (score) => onGameOver(score),
-        onScoreUpdate: (score) => onScoreUpdate(score),
-        onLeaderboardUpdate: (board) => onLeaderboardUpdate(board)
+        onGameOver: (score) => callbacksRef.current.onGameOver(score),
+        onScoreUpdate: (score) => callbacksRef.current.onScoreUpdate(score),
+        onLeaderboardUpdate: (board) => callbacksRef.current.onLeaderboardUpdate(board)
       }
     );
     
@@ -93,7 +99,7 @@ export default function GameCanvas({
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [playerName, onGameOver, onScoreUpdate, onLeaderboardUpdate]);
+  }, [playerName]); // Only recreate engine if playerName changes
 
   return (
     <canvas 

@@ -18,7 +18,8 @@ export default function Home() {
     setScore(0);
   };
 
-  const handleGameOver = (finalScore: number) => {
+  const handleGameOver = (finalScore: number, reason?: string) => {
+    console.log("Game Over triggered. Reason:", reason);
     setScore(finalScore);
     setGameState("gameover");
   };

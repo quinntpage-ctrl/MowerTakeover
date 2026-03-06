@@ -12,60 +12,49 @@ export function captureEnclosedAreas(
 ): string[] {
   if (territorySet.size === 0) return [];
   
+  // For a reliable capture, we need to know what area is enclosed by the path + existing territory.
+  // We'll run a flood fill from a virtual boundary OUTSIDE the grid. 
+  // Any cell we reach is NOT enclosed.
+  // Everything else inside the grid that is not already territory becomes new territory.
+  
   const visited = new Set<string>();
   const toExplore: [number, number][] = [];
   
-  let minX = gridWidth, maxX = 0, minY = gridHeight, maxY = 0;
-  territorySet.forEach(k => {
-    const [x, y] = k.split(',').map(Number);
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-  });
+  // Start flood fill from a single point outside the grid
+  toExplore.push([-1, -1]);
+  visited.add(`-1,-1`);
 
-  // Perform flood fill from all four edges of the WORLD
-  const edgeSet = new Set<string>();
-  for (let x = 0; x < gridWidth; x++) {
-    edgeSet.add(`${x},0`);
-    edgeSet.add(`${x},${gridHeight - 1}`);
-  }
-  for (let y = 0; y < gridHeight; y++) {
-    edgeSet.add(`0,${y}`);
-    edgeSet.add(`${gridWidth - 1},${y}`);
-  }
-
-  edgeSet.forEach(key => {
-    if (!territorySet.has(key) && !visited.has(key)) {
-      const [x, y] = key.split(',').map(Number);
-      visited.add(key);
-      toExplore.push([x, y]);
-    }
-  });
-  
   const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]];
   let head = 0;
+  
   while (head < toExplore.length) {
-    const coord = toExplore[head++];
-    if (!coord) continue;
-    const [cx, cy] = coord;
+    const [cx, cy] = toExplore[head++];
+
     for (const [dx, dy] of dirs) {
       const nx = cx + dx, ny = cy + dy;
-      if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
+      
+      // Allow exploring a 1-cell padding around the grid
+      if (nx >= -1 && nx <= gridWidth && ny >= -1 && ny <= gridHeight) {
         const nKey = `${nx},${ny}`;
-        if (!territorySet.has(nKey) && !visited.has(nKey)) {
-          visited.add(nKey); toExplore.push([nx, ny]);
+        if (!visited.has(nKey)) {
+          visited.add(nKey);
+          
+          // Only spread if the cell is not territory
+          if (!territorySet.has(nKey)) {
+            toExplore.push([nx, ny]);
+          }
         }
       }
     }
   }
   
-  // 3. Any cell that is NOT visited and NOT already in territory is captured!
   const newlyCaptured: string[] = [];
-  // For the final check, we check the entire grid to ensure
-  // that loops are fully captured.
+  // Any cell WITHIN the grid that wasn't visited by the flood fill 
+  // and isn't already territory is now captured!
   for (let x = 0; x < gridWidth; x++) {
     for (let y = 0; y < gridHeight; y++) {
       const key = `${x},${y}`;
-      if (!territorySet.has(key) && !visited.has(key)) {
+      if (!visited.has(key) && !territorySet.has(key)) {
         newlyCaptured.push(key);
       }
     }
