@@ -129,10 +129,16 @@ export class GameEngine {
 
   private updateLeaderboard() {
     const board = Array.from(this.players.values())
-      .map(p => ({ name: p.name, score: p.score, color: p.color }))
+      .map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color }))
       .sort((a, b) => b.score - a.score);
       // Send all players, UI can slice or show all
       
+    // Assign ranks for rendering crowns
+    board.forEach((b, idx) => {
+        const p = this.players.get(b.id);
+        if (p) p.rank = idx + 1;
+    });
+
     this.callbacks.onLeaderboardUpdate(board);
   }
 
@@ -932,6 +938,15 @@ export class GameEngine {
         this.ctx.beginPath();
         this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
         this.ctx.fill();
+
+        // Draw Crown on Mower
+        if (p.rank === 1) {
+            this.drawCrown(this.ctx, '#EC098D'); // Pink
+        } else if (p.rank === 2) {
+            this.drawCrown(this.ctx, '#C0C0C0'); // Silver
+        } else if (p.rank === 3) {
+            this.drawCrown(this.ctx, '#CD7F32'); // Bronze
+        }
         
         // Handle/Bars
         this.ctx.strokeStyle = '#444';

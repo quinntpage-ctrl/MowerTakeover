@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
-import { Joystick, Flame, Scissors, Star, Smile } from "lucide-react";
+import { Joystick, Flame, Scissors, Star, Smile, Crown } from "lucide-react";
 import { PLAYER_COLORS } from "@/lib/game/Constants";
 
 export default function Home() {
@@ -58,10 +58,13 @@ export default function Home() {
           >
             <ul className="space-y-2 pb-2">
               {leaderboard.map((player, idx) => (
-                <li key={idx} className="flex justify-between items-center text-sm font-bold">
+                <li key={idx} className="flex justify-between items-center text-sm font-bold relative">
                   <span className="flex items-center gap-2 truncate">
                     <span className="w-4 h-4 rounded-full border-2 border-white/50 shadow-sm shrink-0" style={{ backgroundColor: player.color }}></span>
                     <span className="truncate max-w-[80px]">{player.name}</span>
+                    {idx === 0 && <Crown className="w-4 h-4 ml-1 text-[#EC098D] fill-[#EC098D] drop-shadow-sm" />}
+                    {idx === 1 && <Crown className="w-4 h-4 ml-1 text-[#C0C0C0] fill-[#C0C0C0] drop-shadow-sm" />}
+                    {idx === 2 && <Crown className="w-4 h-4 ml-1 text-[#CD7F32] fill-[#CD7F32] drop-shadow-sm" />}
                   </span>
                   <span className="text-foreground/80 shrink-0">{player.score.toFixed(1)}%</span>
                 </li>
