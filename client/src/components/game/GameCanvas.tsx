@@ -17,7 +17,8 @@ export default function GameCanvas({
   trailType,
   onGameOver, 
   onScoreUpdate, 
-  onLeaderboardUpdate 
+  onLeaderboardUpdate,
+  onFireballsUpdate
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);

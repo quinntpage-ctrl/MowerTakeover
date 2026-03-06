@@ -8,7 +8,8 @@ import { captureEnclosedAreas } from './Utils';
 interface GameCallbacks {
   onGameOver: (score: number, reason?: string) => void;
   onScoreUpdate: (score: number) => void;
-  onLeaderboardUpdate: (board: {name: string, score: number, color: string}[]) => void;
+  onLeaderboardUpdate: (board: {id: string, name: string, score: number, color: string}[]) => void;
+  onFireballsUpdate?: (count: number) => void;
 }
 
 interface Particle {
@@ -71,6 +72,7 @@ export class GameEngine {
   private activeFireballs: Fireball[] = [];
 
   private trailType: "grass" | "flame" | "star" | "smile" = "grass";
+  private logoImage: HTMLImageElement;
 
   constructor(canvas: HTMLCanvasElement, playerName: string, playerColor: string = PLAYER_COLORS[0], trailType: "grass" | "flame" | "star" | "smile" = "grass", callbacks: GameCallbacks) {
     this.canvas = canvas;
@@ -763,7 +765,7 @@ export class GameEngine {
                     const key = `${nx},${ny}`;
                     
                     // See if any active player owns this cell
-                    for (const [id, other] of this.players.entries()) {
+                    for (const [id, other] of Array.from(this.players.entries())) {
                         if (!other.isDead && other.territory.has(key)) {
                             overlap = true;
                             break;
@@ -869,7 +871,7 @@ export class GameEngine {
                 const key = `${gridX},${gridY}`;
                 
                 let isClaimed = false;
-                for (const p of this.players.values()) {
+                for (const p of Array.from(this.players.values())) {
                     if (!p.isDead && p.territory.has(key)) {
                         isClaimed = true;
                         break;
@@ -908,7 +910,7 @@ export class GameEngine {
                 const key = `${gridX},${gridY}`;
                 
                 let isClaimed = false;
-                for (const p of this.players.values()) {
+                for (const p of Array.from(this.players.values())) {
                     if (!p.isDead && p.territory.has(key)) {
                         isClaimed = true;
                         break;
