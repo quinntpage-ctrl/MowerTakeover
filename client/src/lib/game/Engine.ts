@@ -111,38 +111,6 @@ export class GameEngine {
     this.camera.y = localPlayer.y;
   }
 
-  private drawCrown(ctx: CanvasRenderingContext2D, color: string) {
-      ctx.save();
-      // Translate to be centered slightly up on the deck
-      ctx.translate(0, -2);
-      ctx.scale(0.8, 0.8);
-      
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      // Draw a 3-point crown
-      ctx.moveTo(-10, 8); // bottom left
-      ctx.lineTo(10, 8);  // bottom right
-      ctx.lineTo(12, -6); // right point
-      ctx.lineTo(5, 0);   // inner right
-      ctx.lineTo(0, -10); // top point
-      ctx.lineTo(-5, 0);  // inner left
-      ctx.lineTo(-12, -6);// left point
-      ctx.closePath();
-      
-      ctx.fill();
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      
-      // Little jewels/circles on points
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(12, -6, 2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.arc(0, -10, 2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.arc(-12, -6, 2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-      
-      ctx.restore();
-  }
-
   public resize(width: number, height: number) {
     this.width = width;
     this.height = height;
@@ -959,26 +927,39 @@ export class GameEngine {
         else if (p.direction === 'DOWN') this.ctx.rotate(Math.PI);
         else if (p.direction === 'LEFT') this.ctx.rotate(-Math.PI/2);
         
-        // Mower Body (deck)
-        this.ctx.fillStyle = p.color;
-        this.ctx.beginPath();
-        this.ctx.roundRect(-14, -12, 28, 24, 4);
-        this.ctx.fill();
+        // Add glow and colored outline for top 3
+        if (p.rank === 1 || p.rank === 2 || p.rank === 3) {
+            const glowColor = p.rank === 1 ? '#EC098D' : (p.rank === 2 ? '#C0C0C0' : '#CD7F32');
+            this.ctx.shadowColor = glowColor;
+            this.ctx.shadowBlur = 15;
+
+            // Mower Body (deck)
+            this.ctx.fillStyle = p.color;
+            this.ctx.beginPath();
+            this.ctx.roundRect(-14, -12, 28, 24, 4);
+            this.ctx.fill();
+
+            // Add an outline so the color stands out even more
+            this.ctx.strokeStyle = glowColor;
+            this.ctx.lineWidth = 3;
+            this.ctx.stroke();
+        } else {
+            // Mower Body (deck) normal
+            this.ctx.fillStyle = p.color;
+            this.ctx.beginPath();
+            this.ctx.roundRect(-14, -12, 28, 24, 4);
+            this.ctx.fill();
+        }
+        
+        // Reset shadow for other parts
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowColor = 'transparent';
         
         // Mower engine/center
         this.ctx.fillStyle = '#333';
         this.ctx.beginPath();
         this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
         this.ctx.fill();
-
-        // Draw Crown on Mower
-        if (p.rank === 1) {
-            this.drawCrown(this.ctx, '#EC098D'); // Pink
-        } else if (p.rank === 2) {
-            this.drawCrown(this.ctx, '#C0C0C0'); // Silver
-        } else if (p.rank === 3) {
-            this.drawCrown(this.ctx, '#CD7F32'); // Bronze
-        }
         
         // Handle/Bars
         this.ctx.strokeStyle = '#444';
