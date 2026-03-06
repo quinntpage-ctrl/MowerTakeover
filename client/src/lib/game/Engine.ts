@@ -72,6 +72,15 @@ export class GameEngine {
     cancelAnimationFrame(this.animationFrameId);
   }
 
+  private updateLeaderboard() {
+    const board = Array.from(this.players.values())
+      .map(p => ({ name: p.name, score: p.score, color: p.color }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+      
+    this.callbacks.onLeaderboardUpdate(board);
+  }
+
   private gameLoop = (timestamp: number) => {
     if (!this.isRunning) return;
 
@@ -79,6 +88,7 @@ export class GameEngine {
     this.lastTimestamp = timestamp;
 
     this.update(dt);
+    this.updateLeaderboard();
     this.draw();
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
   }
