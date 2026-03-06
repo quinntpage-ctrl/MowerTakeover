@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
 import { Joystick, Flame, Scissors, Star, Smile, Crown, Info, ArrowLeft, Crosshair, Skull } from "lucide-react";
-import { PLAYER_COLORS } from "@/lib/game/Constants";
+import { PLAYER_COLORS } from "@shared/game/Constants";
 
 export default function Home() {
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameover" | "tutorial">("menu");

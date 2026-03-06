@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { GameEngine } from '@/lib/game/Engine';
+import type { ServerMessage, ClientMessage } from '@shared/game/Protocol';
+import type { Direction } from '@shared/game/Constants';
 
 interface GameCanvasProps {
   playerName: string;
@@ -11,20 +13,20 @@ interface GameCanvasProps {
   onFireballsUpdate?: (count: number) => void;
 }
 
-export default function GameCanvas({ 
-  playerName, 
+export default function GameCanvas({
+  playerName,
   playerColor,
   trailType,
-  onGameOver, 
-  onScoreUpdate, 
+  onGameOver,
+  onScoreUpdate,
   onLeaderboardUpdate,
   onFireballsUpdate
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const callbacksRef = useRef({ onGameOver, onScoreUpdate, onLeaderboardUpdate, onFireballsUpdate });
 
-  // Keep callbacks up to date without triggering engine recreation
   useEffect(() => {
     callbacksRef.current = { onGameOver, onScoreUpdate, onLeaderboardUpdate, onFireballsUpdate };
   }, [onGameOver, onScoreUpdate, onLeaderboardUpdate, onFireballsUpdate]);
@@ -32,12 +34,8 @@ export default function GameCanvas({
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    // Initialize the game engine
     const engine = new GameEngine(
-      canvasRef.current, 
-      playerName,
-      playerColor,
-      trailType,
+      canvasRef.current,
       {
         onGameOver: (score) => callbacksRef.current.onGameOver(score),
         onScoreUpdate: (score) => callbacksRef.current.onScoreUpdate(score),
@@ -45,69 +43,143 @@ export default function GameCanvas({
         onFireballsUpdate: (count) => callbacksRef.current.onFireballsUpdate?.(count)
       }
     );
-    
+
     engineRef.current = engine;
     engine.start();
 
-    // Handle resize
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      const joinMsg: ClientMessage = {
+        type: 'join',
+        name: playerName,
+        color: playerColor || '#EC098D',
+        trailType: trailType || 'grass'
+      };
+      ws.send(JSON.stringify(joinMsg));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg: ServerMessage = JSON.parse(event.data);
+
+        switch (msg.type) {
+          case 'welcome':
+            engine.setLocalPlayerId(msg.playerId);
+            engine.applyState(msg.state.players, msg.state.fireballs, msg.state.collectibles);
+            engine.applyLeaderboard(msg.state.leaderboard);
+            break;
+
+          case 'state':
+            engine.applyState(msg.players, msg.fireballs, msg.collectibles);
+            break;
+
+          case 'leaderboard':
+            engine.applyLeaderboard(msg.board);
+            break;
+
+          case 'gameOver':
+            callbacksRef.current.onGameOver(msg.score);
+            break;
+
+          case 'kill':
+            break;
+        }
+      } catch (e) {
+        console.error('Failed to parse server message:', e);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+    };
+
+    const sendDirection = (dir: Direction) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        const msg: ClientMessage = { type: 'direction', direction: dir };
+        ws.send(JSON.stringify(msg));
+      }
+    };
+
+    const sendShoot = () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        const msg: ClientMessage = { type: 'shoot' };
+        ws.send(JSON.stringify(msg));
+      }
+    };
+
+    const handleKey = (e: KeyboardEvent) => {
+      switch (e.key.toLowerCase()) {
+        case 'arrowup': case 'w': sendDirection('UP'); break;
+        case 'arrowdown': case 's': sendDirection('DOWN'); break;
+        case 'arrowleft': case 'a': sendDirection('LEFT'); break;
+        case 'arrowright': case 'd': sendDirection('RIGHT'); break;
+        case ' ':
+        case 'enter':
+          sendShoot();
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+
     const handleResize = () => {
       if (canvasRef.current) {
-        // Handle high DPI displays
         const dpr = window.devicePixelRatio || 1;
         const rect = canvasRef.current.parentElement?.getBoundingClientRect() || { width: window.innerWidth, height: window.innerHeight };
-        
+
         canvasRef.current.width = rect.width * dpr;
         canvasRef.current.height = rect.height * dpr;
-        
-        // CSS display size
+
         canvasRef.current.style.width = `${rect.width}px`;
         canvasRef.current.style.height = `${rect.height}px`;
-        
-        // Normalize coordinate system to use css pixels
+
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
           ctx.scale(dpr, dpr);
         }
-        
+
         engine.resize(rect.width, rect.height);
       }
     };
-    
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Initial size set
 
-    // Touch controls setup
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
     let touchStartX = 0;
     let touchStartY = 0;
-    
+
     const handleTouchStart = (e: TouchEvent) => {
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
     };
-    
+
     const handleTouchMove = (e: TouchEvent) => {
-      e.preventDefault(); // Prevent scrolling
+      e.preventDefault();
       if (!touchStartX || !touchStartY) return;
-      
+
       const touchEndX = e.touches[0].clientX;
       const touchEndY = e.touches[0].clientY;
-      
+
       const dx = touchEndX - touchStartX;
       const dy = touchEndY - touchStartY;
-      
-      // Minimum swipe distance
+
       if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
         if (Math.abs(dx) > Math.abs(dy)) {
-          // Horizontal swipe
-          if (dx > 0) engine.setPlayerDirection('RIGHT');
-          else engine.setPlayerDirection('LEFT');
+          if (dx > 0) sendDirection('RIGHT');
+          else sendDirection('LEFT');
         } else {
-          // Vertical swipe
-          if (dy > 0) engine.setPlayerDirection('DOWN');
-          else engine.setPlayerDirection('UP');
+          if (dy > 0) sendDirection('DOWN');
+          else sendDirection('UP');
         }
-        
-        // Reset to prevent continuous triggering
+
         touchStartX = touchEndX;
         touchStartY = touchEndY;
       }
@@ -119,15 +191,17 @@ export default function GameCanvas({
 
     return () => {
       engine.stop();
+      ws.close();
+      window.removeEventListener('keydown', handleKey);
       window.removeEventListener('resize', handleResize);
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [playerName]); // Only recreate engine if playerName changes
+  }, [playerName]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
+    <canvas
+      ref={canvasRef}
       className="absolute inset-0 w-full h-full block cursor-crosshair"
       style={{ touchAction: 'none' }}
       data-testid="game-canvas"

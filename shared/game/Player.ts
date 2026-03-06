@@ -1,4 +1,4 @@
-import { Direction, GRID_SIZE, CELL_SIZE } from './Constants';
+import { Direction, GRID_SIZE, CELL_SIZE, TrailType } from './Constants';
 
 export interface Point {
   x: number;
@@ -13,19 +13,19 @@ export class PlayerState {
   y: number;
   direction: Direction;
   nextDirection: Direction;
-  territory: Set<string>; 
+  territory: Set<string>;
   trail: Point[];
-  trailSet: Set<string>; 
+  trailSet: Set<string>;
   isDead: boolean;
   deathAlpha: number;
   deathReason: string;
   score: number;
   isBot: boolean;
-  trailType: "grass" | "flame" | "star" | "smile";
+  trailType: TrailType;
   rank: number;
   fireballs: number;
 
-  constructor(id: string, name: string, color: string, startX: number, startY: number, isBot: boolean = false, trailType: "grass" | "flame" | "star" | "smile" = "grass") {
+  constructor(id: string, name: string, color: string, startX: number, startY: number, isBot: boolean = false, trailType: TrailType = 'grass') {
     this.id = id;
     this.name = name;
     this.color = color;
@@ -44,13 +44,11 @@ export class PlayerState {
     this.trailType = trailType;
     this.rank = 0;
     this.fireballs = 0;
-    
-    // Use CELL_SIZE constant
+
     const gridX = Math.floor(startX / CELL_SIZE);
     const gridY = Math.floor(startY / CELL_SIZE);
-    
+
     this.territory.clear();
-    // Start with a 7x7 zone to ensure it's large enough to safely turn around in
     for (let dx = -3; dx <= 3; dx++) {
       for (let dy = -3; dy <= 3; dy++) {
         const nx = gridX + dx;
