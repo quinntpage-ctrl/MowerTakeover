@@ -97,12 +97,6 @@ export class GameEngine {
           }
         }
 
-        for (const key of Array.from(prevTerrSet)) {
-          if (!newTerrSet.has(key)) {
-            const [cx, cy] = key.split(',').map(Number);
-            this.claimFlashes.push({ x: cx, y: cy, alpha: 0.8, color: '#1f2937' });
-          }
-        }
       }
 
       this.prevTerritories.set(p.id, newTerrSet);
