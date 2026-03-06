@@ -50,6 +50,8 @@ export class GameEngine {
   private particles: Particle[] = [];
   private claimFlashes: ClaimFlash[] = [];
 
+  private logoImage: HTMLImageElement;
+
   constructor(canvas: HTMLCanvasElement, playerName: string, callbacks: GameCallbacks) {
     this.canvas = canvas;
     const context = canvas.getContext('2d', { alpha: false });
@@ -57,6 +59,10 @@ export class GameEngine {
     this.ctx = context;
     this.callbacks = callbacks;
     
+    // Load Mower logo
+    this.logoImage = new Image();
+    this.logoImage.src = '/logo.svg';
+
     this.initGame(playerName);
     this.spawnBots(5);
     this.setupInputs();
@@ -564,6 +570,53 @@ export class GameEngine {
     this.ctx.shadowBlur = 15;
     this.ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.ctx.shadowBlur = 0; // reset
+
+    // Warning Logo on Border Approach
+    const lp = this.players.get(this.localPlayerId);
+    if (lp && !lp.isDead) {
+        const distLeft = lp.x;
+        const distRight = WORLD_WIDTH - lp.x;
+        const distTop = lp.y;
+        const distBottom = WORLD_HEIGHT - lp.y;
+        const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+        const threshold = 400; // start fading in 400px away
+        
+        if (minDist < threshold && this.logoImage.complete && this.logoImage.naturalWidth > 0) {
+            const alpha = 1.0 - Math.max(0, minDist / threshold);
+            this.ctx.save();
+            this.ctx.globalAlpha = alpha * 0.9;
+            
+            let logoX = lp.x;
+            let logoY = lp.y;
+            let rotation = 0;
+            const offset = 80;
+            
+            if (minDist === distLeft) {
+                logoX = offset;
+                rotation = Math.PI / 2;
+            } else if (minDist === distRight) {
+                logoX = WORLD_WIDTH - offset;
+                rotation = -Math.PI / 2;
+            } else if (minDist === distTop) {
+                logoY = offset;
+                rotation = 0;
+            } else {
+                logoY = WORLD_HEIGHT - offset;
+                rotation = Math.PI;
+            }
+            
+            this.ctx.translate(logoX, logoY);
+            this.ctx.rotate(rotation);
+            const lw = 300;
+            const lh = 300 * (90.8 / 513.5); 
+            
+            this.ctx.shadowColor = '#EC098D';
+            this.ctx.shadowBlur = 10;
+            this.ctx.drawImage(this.logoImage, -lw/2, -lh/2, lw, lh);
+            
+            this.ctx.restore();
+        }
+    }
 
     this.players.forEach(p => {
       if (p.isDead && p.deathAlpha <= 0) return;
