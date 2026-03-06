@@ -30,6 +30,15 @@ interface ClaimFlash {
   color: string;
 }
 
+interface InterpolatedPos {
+  prevX: number;
+  prevY: number;
+  targetX: number;
+  targetY: number;
+  prevDirection: Direction;
+  targetDirection: Direction;
+}
+
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -48,11 +57,19 @@ export class GameEngine {
   private lastTimestamp: number = 0;
 
   private camera = { x: 0, y: 0 };
+  private cameraTarget = { x: 0, y: 0 };
   private callbacks: GameCallbacks;
 
   private particles: Particle[] = [];
   private claimFlashes: ClaimFlash[] = [];
   private logoImage: HTMLImageElement;
+
+  private interpPositions: Map<string, InterpolatedPos> = new Map();
+  private interpFactor: number = 0;
+  private lastStateTime: number = 0;
+  private stateInterval: number = 50;
+
+  private prevFireballs: Map<string, { x: number; y: number }> = new Map();
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
@@ -70,6 +87,14 @@ export class GameEngine {
   }
 
   applyState(players: PlayerData[], fireballs: FireballData[], collectibles: CollectibleData[]) {
+    const now = performance.now();
+    const elapsed = now - this.lastStateTime;
+    if (elapsed > 10 && elapsed < 200) {
+      this.stateInterval = this.stateInterval * 0.8 + elapsed * 0.2;
+    }
+    this.lastStateTime = now;
+    this.interpFactor = 0;
+
     for (const p of players) {
       const prevTerrSet = this.prevTerritories.get(p.id);
       const newTerrSet = new Set(p.territory);
@@ -81,16 +106,43 @@ export class GameEngine {
             this.claimFlashes.push({ x: cx, y: cy, alpha: 1.0, color: p.color });
           }
         }
-
       }
 
       this.prevTerritories.set(p.id, newTerrSet);
+
+      const existing = this.interpPositions.get(p.id);
+      if (existing) {
+        existing.prevX = existing.prevX + (existing.targetX - existing.prevX) * Math.min(1, this.interpFactor);
+        existing.prevY = existing.prevY + (existing.targetY - existing.prevY) * Math.min(1, this.interpFactor);
+        existing.targetX = p.x;
+        existing.targetY = p.y;
+        existing.prevDirection = existing.targetDirection;
+        existing.targetDirection = p.direction;
+      } else {
+        this.interpPositions.set(p.id, {
+          prevX: p.x, prevY: p.y,
+          targetX: p.x, targetY: p.y,
+          prevDirection: p.direction, targetDirection: p.direction
+        });
+      }
     }
 
     const currentIds = new Set(players.map(p => p.id));
     for (const [id] of this.prevTerritories) {
       if (!currentIds.has(id)) {
         this.prevTerritories.delete(id);
+      }
+    }
+    for (const [id] of this.interpPositions) {
+      if (!currentIds.has(id)) {
+        this.interpPositions.delete(id);
+      }
+    }
+
+    for (const fb of fireballs) {
+      const fbKey = `${fb.ownerId}_${Math.round(fb.x / 100)}_${Math.round(fb.y / 100)}`;
+      if (!this.prevFireballs.has(fb.ownerId + '_fb')) {
+        this.prevFireballs.set(fb.ownerId + '_fb', { x: fb.x, y: fb.y });
       }
     }
 
@@ -100,8 +152,12 @@ export class GameEngine {
 
     const localP = this.players.find(p => p.id === this.localPlayerId);
     if (localP) {
-      this.camera.x = localP.x;
-      this.camera.y = localP.y;
+      this.cameraTarget.x = localP.x;
+      this.cameraTarget.y = localP.y;
+      if (this.camera.x === 0 && this.camera.y === 0) {
+        this.camera.x = localP.x;
+        this.camera.y = localP.y;
+      }
       this.callbacks.onScoreUpdate(localP.score);
       this.callbacks.onFireballsUpdate?.(localP.fireballs);
     }
@@ -112,13 +168,14 @@ export class GameEngine {
   private spawnTrailParticles() {
     for (const p of this.players) {
       if (p.isDead) continue;
-      const cellKey = `${Math.floor(p.x / CELL_SIZE)},${Math.floor(p.y / CELL_SIZE)}`;
+      const ip = this.getInterpPos(p);
+      const cellKey = `${Math.floor(ip.x / CELL_SIZE)},${Math.floor(ip.y / CELL_SIZE)}`;
       const terrSet = this.prevTerritories.get(p.id);
       if (terrSet && terrSet.has(cellKey)) continue;
 
       if (Math.random() > 0.4) continue;
 
-      let vx = 0, vy = 0, px = p.x, py = p.y;
+      let vx = 0, vy = 0, px = ip.x, py = ip.y;
 
       if (p.trailType === 'flame') {
         if (p.direction === 'UP') { vx = (Math.random()-0.5)*20; vy = 40+Math.random()*40; py += 10; }
@@ -195,9 +252,28 @@ export class GameEngine {
     const dt = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
     this.lastTimestamp = timestamp;
 
+    const elapsed = timestamp - (this.lastStateTime || timestamp);
+    this.interpFactor = Math.min(1.0, elapsed / this.stateInterval);
+
+    const lerpSpeed = 1 - Math.pow(0.001, dt);
+    this.camera.x += (this.cameraTarget.x - this.camera.x) * lerpSpeed;
+    this.camera.y += (this.cameraTarget.y - this.camera.y) * lerpSpeed;
+
     this.updateEffects(dt);
     this.draw();
     this.animationFrameId = requestAnimationFrame(this.renderLoop);
+  }
+
+  private getInterpPos(p: PlayerData): { x: number; y: number; direction: Direction } {
+    const interp = this.interpPositions.get(p.id);
+    if (!interp) return { x: p.x, y: p.y, direction: p.direction };
+
+    const t = this.interpFactor;
+    return {
+      x: interp.prevX + (interp.targetX - interp.prevX) * t,
+      y: interp.prevY + (interp.targetY - interp.prevY) * t,
+      direction: interp.targetDirection
+    };
   }
 
   private updateEffects(dt: number) {
@@ -302,7 +378,8 @@ export class GameEngine {
     this.ctx.shadowBlur = 0;
 
     const lp = this.players.find(p => p.id === this.localPlayerId);
-    if (lp && this.logoImage.complete && this.logoImage.naturalWidth > 0) {
+    const lpInterp = lp ? this.getInterpPos(lp) : null;
+    if (lp && lpInterp && this.logoImage.complete && this.logoImage.naturalWidth > 0) {
       const drawOuterLogo = (x: number, y: number, rotation: number) => {
         this.ctx.save();
         this.ctx.translate(x, y);
@@ -317,8 +394,8 @@ export class GameEngine {
         this.ctx.restore();
       };
 
-      const px = Math.max(400, Math.min(WORLD_WIDTH - 400, lp.x));
-      const py = Math.max(400, Math.min(WORLD_HEIGHT - 400, lp.y));
+      const px = Math.max(400, Math.min(WORLD_WIDTH - 400, lpInterp.x));
+      const py = Math.max(400, Math.min(WORLD_HEIGHT - 400, lpInterp.y));
 
       drawOuterLogo(px, -150, 0);
       drawOuterLogo(px, WORLD_HEIGHT + 150, Math.PI);
@@ -356,6 +433,8 @@ export class GameEngine {
     for (const p of this.players) {
       if (p.isDead && p.deathAlpha <= 0) continue;
 
+      const ip = this.getInterpPos(p);
+
       this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
 
       for (const key of p.territory) {
@@ -391,10 +470,10 @@ export class GameEngine {
           let tcy = cell.y * CELL_SIZE + CELL_SIZE / 2;
 
           if (i === p.trail.length - 1) {
-            if (p.direction === 'RIGHT' && tcx > p.x) tcx = p.x;
-            if (p.direction === 'LEFT' && tcx < p.x) tcx = p.x;
-            if (p.direction === 'DOWN' && tcy > p.y) tcy = p.y;
-            if (p.direction === 'UP' && tcy < p.y) tcy = p.y;
+            if (ip.direction === 'RIGHT' && tcx > ip.x) tcx = ip.x;
+            if (ip.direction === 'LEFT' && tcx < ip.x) tcx = ip.x;
+            if (ip.direction === 'DOWN' && tcy > ip.y) tcy = ip.y;
+            if (ip.direction === 'UP' && tcy < ip.y) tcy = ip.y;
           }
 
           if (i === 0) {
@@ -410,7 +489,7 @@ export class GameEngine {
           this.ctx.lineTo(tcx, tcy);
         }
 
-        this.ctx.lineTo(p.x, p.y);
+        this.ctx.lineTo(ip.x, ip.y);
         this.ctx.strokeStyle = p.color + 'AA';
         this.ctx.lineWidth = CELL_SIZE * 0.8;
         this.ctx.lineCap = 'round';
@@ -419,10 +498,10 @@ export class GameEngine {
       }
 
       this.ctx.save();
-      this.ctx.translate(p.x, p.y);
-      if (p.direction === 'RIGHT') this.ctx.rotate(Math.PI / 2);
-      else if (p.direction === 'DOWN') this.ctx.rotate(Math.PI);
-      else if (p.direction === 'LEFT') this.ctx.rotate(-Math.PI / 2);
+      this.ctx.translate(ip.x, ip.y);
+      if (ip.direction === 'RIGHT') this.ctx.rotate(Math.PI / 2);
+      else if (ip.direction === 'DOWN') this.ctx.rotate(Math.PI);
+      else if (ip.direction === 'LEFT') this.ctx.rotate(-Math.PI / 2);
 
       this.ctx.fillStyle = p.color;
       this.ctx.beginPath();
@@ -454,7 +533,7 @@ export class GameEngine {
       this.ctx.fillStyle = '#000';
       this.ctx.font = 'bold 12px Nunito';
       this.ctx.textAlign = 'center';
-      this.ctx.fillText(p.name, p.x, p.y - 25);
+      this.ctx.fillText(p.name, ip.x, ip.y - 25);
 
       this.ctx.globalAlpha = 1.0;
     }
