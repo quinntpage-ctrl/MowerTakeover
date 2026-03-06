@@ -23,26 +23,23 @@ export function captureEnclosedAreas(
   });
 
   // Perform flood fill from all four edges of the WORLD
+  const edgeSet = new Set<string>();
   for (let x = 0; x < gridWidth; x++) {
-    const keys = [`${x},0`, `${x},${gridHeight - 1}`];
-    keys.forEach(k => {
-      if (!territorySet.has(k) && !visited.has(k)) {
-        const [cx, cy] = k.split(',').map(Number);
-        visited.add(k);
-        toExplore.push([cx, cy]);
-      }
-    });
+    edgeSet.add(`${x},0`);
+    edgeSet.add(`${x},${gridHeight - 1}`);
   }
   for (let y = 0; y < gridHeight; y++) {
-    const keys = [`0,${y}`, `${gridWidth - 1},${y}`];
-    keys.forEach(k => {
-      if (!territorySet.has(k) && !visited.has(k)) {
-        const [cx, cy] = k.split(',').map(Number);
-        visited.add(k);
-        toExplore.push([cx, cy]);
-      }
-    });
+    edgeSet.add(`0,${y}`);
+    edgeSet.add(`${gridWidth - 1},${y}`);
   }
+
+  edgeSet.forEach(key => {
+    if (!territorySet.has(key) && !visited.has(key)) {
+      const [x, y] = key.split(',').map(Number);
+      visited.add(key);
+      toExplore.push([x, y]);
+    }
+  });
   
   const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]];
   let head = 0;

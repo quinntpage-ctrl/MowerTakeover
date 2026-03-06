@@ -87,12 +87,12 @@ export class GameEngine {
     const p = this.players.get(this.localPlayerId);
     if (!p || p.isDead) return;
     
-    // Prevent 180 degree turns
+    // Prevent 180 degree turns against the currently buffered input
     if (
-      (dir === 'UP' && p.direction === 'DOWN') ||
-      (dir === 'DOWN' && p.direction === 'UP') ||
-      (dir === 'LEFT' && p.direction === 'RIGHT') ||
-      (dir === 'RIGHT' && p.direction === 'LEFT')
+      (dir === 'UP' && p.nextDirection === 'DOWN') ||
+      (dir === 'DOWN' && p.nextDirection === 'UP') ||
+      (dir === 'LEFT' && p.nextDirection === 'RIGHT') ||
+      (dir === 'RIGHT' && p.nextDirection === 'LEFT')
     ) {
       return;
     }
@@ -125,18 +125,50 @@ export class GameEngine {
 
     const oldCell = this.getCellAt(p.x, p.y);
     
-    // Update direction
-    p.direction = p.nextDirection;
-
     const moveDist = PLAYER_SPEED * dt;
-    if (p.direction === 'UP') p.y -= moveDist;
-    else if (p.direction === 'DOWN') p.y += moveDist;
-    else if (p.direction === 'LEFT') p.x -= moveDist;
-    else if (p.direction === 'RIGHT') p.x += moveDist;
 
-    // Bounds
-    p.x = Math.max(0, Math.min(WORLD_WIDTH, p.x));
-    p.y = Math.max(0, Math.min(WORLD_HEIGHT, p.y));
+    // Strict Splix.io style movement:
+    // Move along current axis. We only change direction if we are near the center of a cell.
+    const cx = Math.floor(p.x / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+    const cy = Math.floor(p.y / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+    
+    // Are we passing through the center of a cell this frame?
+    const isHorizontal = p.direction === 'LEFT' || p.direction === 'RIGHT';
+    const distToCenter = isHorizontal ? Math.abs(p.x - cx) : Math.abs(p.y - cy);
+    
+    // Only allow turning if we are moving towards the center, and the distance to center is less than our move distance
+    // We also need to check if we are moving the correct direction relative to the center
+    const movingTowardsCenter = 
+      (p.direction === 'RIGHT' && p.x <= cx) ||
+      (p.direction === 'LEFT' && p.x >= cx) ||
+      (p.direction === 'DOWN' && p.y <= cy) ||
+      (p.direction === 'UP' && p.y >= cy);
+
+    const passingCenter = movingTowardsCenter && distToCenter <= moveDist;
+
+    if (p.nextDirection !== p.direction && passingCenter) {
+      // Snap to center and turn
+      p.x = cx;
+      p.y = cy;
+      p.direction = p.nextDirection;
+      
+      // Move remaining distance in new direction
+      const remainingDist = moveDist - distToCenter;
+      if (p.direction === 'UP') p.y -= remainingDist;
+      else if (p.direction === 'DOWN') p.y += remainingDist;
+      else if (p.direction === 'LEFT') p.x -= remainingDist;
+      else if (p.direction === 'RIGHT') p.x += remainingDist;
+    } else {
+      // Normal movement
+      if (p.direction === 'UP') p.y -= moveDist;
+      else if (p.direction === 'DOWN') p.y += moveDist;
+      else if (p.direction === 'LEFT') p.x -= moveDist;
+      else if (p.direction === 'RIGHT') p.x += moveDist;
+    }
+
+    // Strict bounds
+    p.x = Math.max(0, Math.min(WORLD_WIDTH - 0.001, p.x));
+    p.y = Math.max(0, Math.min(WORLD_HEIGHT - 0.001, p.y));
 
     const newCell = this.getCellAt(p.x, p.y);
     const cellKey = `${newCell.x},${newCell.y}`;
@@ -146,8 +178,8 @@ export class GameEngine {
       
       if (isEnteringSafeZone) {
         if (p.trail.length > 0) {
-          // BRIDGE THE GAP: Ensure the cell we just entered is treated as territory
-          p.territory.add(cellKey);
+          // Add the safe zone entry point to close the loop perfectly
+          p.trail.push({...newCell});
           
           // 1. Convert ALL trail segments to territory
           p.trail.forEach(t => p.territory.add(`${t.x},${t.y}`));
@@ -157,7 +189,8 @@ export class GameEngine {
           p.trail = [];
           
           // 3. Flood fill to capture internal areas
-          const newlyCaptured = captureEnclosedAreas(new Set(p.territory));
+          const territoryCopy = new Set(p.territory);
+          const newlyCaptured = captureEnclosedAreas(territoryCopy);
           newlyCaptured.forEach(k => {
             p.territory.add(k);
             this.players.forEach(other => {
@@ -172,7 +205,8 @@ export class GameEngine {
         // HOSTILE TERRITORY
         const isSelfCollision = p.trailSet.has(cellKey);
         
-        // IMMUNITY: Ignore the last 3 points to allow sharp turns and account for movement speed
+        // IMMUNITY: Allow sharp turns by ignoring the last few points
+        // Because of high speed and cell transitions, we need a buffer
         const isRecentTrail = p.trail.slice(-3).some(t => t.x === newCell.x && t.y === newCell.y);
 
         if (isSelfCollision && !isRecentTrail) {
