@@ -39,21 +39,23 @@ export default function Home() {
 
       {/* UI OVERLAY - LEADERBOARD */}
       {gameState === "playing" && (
-        <div className="absolute top-20 md:top-4 right-4 glass-panel rounded-xl p-4 w-40 md:w-48 shadow-lg pointer-events-none transition-all z-10">
-          <h3 className="font-display text-base md:text-lg text-primary-foreground bg-primary -mt-4 -mx-4 mb-3 p-2 rounded-t-xl text-center shadow-sm">
+        <div className="absolute top-20 md:top-4 right-4 glass-panel rounded-xl p-4 w-40 md:w-48 shadow-lg pointer-events-auto transition-all z-10 max-h-[40vh] md:max-h-[60vh] flex flex-col">
+          <h3 className="font-display text-base md:text-lg text-primary-foreground bg-primary -mt-4 -mx-4 mb-3 p-2 rounded-t-xl text-center shadow-sm shrink-0">
             Top Mowers
           </h3>
-          <ul className="space-y-2">
-            {leaderboard.map((player, idx) => (
-              <li key={idx} className="flex justify-between items-center text-sm font-bold">
-                <span className="flex items-center gap-2 truncate">
-                  <span className="w-4 h-4 rounded-full border-2 border-white/50 shadow-sm" style={{ backgroundColor: player.color }}></span>
-                  <span className="truncate max-w-[80px]">{player.name}</span>
-                </span>
-                <span className="text-foreground/80">{player.score.toFixed(1)}%</span>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar">
+            <ul className="space-y-2 pb-2">
+              {leaderboard.map((player, idx) => (
+                <li key={idx} className="flex justify-between items-center text-sm font-bold">
+                  <span className="flex items-center gap-2 truncate">
+                    <span className="w-4 h-4 rounded-full border-2 border-white/50 shadow-sm shrink-0" style={{ backgroundColor: player.color }}></span>
+                    <span className="truncate max-w-[80px]">{player.name}</span>
+                  </span>
+                  <span className="text-foreground/80 shrink-0">{player.score.toFixed(1)}%</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
 

@@ -100,8 +100,8 @@ export class GameEngine {
   private updateLeaderboard() {
     const board = Array.from(this.players.values())
       .map(p => ({ name: p.name, score: p.score, color: p.color }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
+      .sort((a, b) => b.score - a.score);
+      // Send all players, UI can slice or show all
       
     this.callbacks.onLeaderboardUpdate(board);
   }
