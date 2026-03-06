@@ -143,35 +143,51 @@ export class GameEngine {
 
     if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
       // Logic for trail and territory
-      if (p.trailSet.has(cellKey)) {
-        this.killPlayer(p.id);
-        return;
-      }
-
-      if (!p.territory.has(cellKey)) {
+      if (p.territory.has(cellKey)) {
+        // Entering territory - finalize capture if we have a trail
+        if (p.trail.length > 0) {
+          // Add the final point to the territory before calculating enclosure
+          p.trail.forEach(t => {
+            p.territory.add(`${t.x},${t.y}`);
+            p.trailSet.delete(`${t.x},${t.y}`); // Clean up as we go
+          });
+          
+          // Use a fresh set for capture calculation to avoid reference issues
+          const captured = captureEnclosedAreas(new Set(p.territory));
+          captured.forEach(k => {
+            p.territory.add(k);
+            this.players.forEach(other => {
+              if (other.id !== p.id) other.territory.delete(k);
+            });
+          });
+          
+          p.trail = [];
+          p.trailSet.clear();
+          p.updateScore();
+          this.callbacks.onScoreUpdate(p.score);
+        }
+      } else {
+        // Outside territory - check trail collision
+        // Grace period: don't kill if hitting the very last cell we just left
+        if (p.trailSet.has(cellKey)) {
+          const lastPoint = p.trail[p.trail.length - 1];
+          // If the collision is with a trail point that isn't the immediate previous one
+          if (lastPoint && (lastPoint.x !== newCell.x || lastPoint.y !== newCell.y)) {
+             this.killPlayer(p.id);
+             return;
+          }
+        }
+        
+        // Add to trail
         p.trail.push({...newCell});
         p.trailSet.add(cellKey);
-      } else if (p.trail.length > 0) {
-        // Returned to territory - finalize capture
-        p.trail.forEach(t => {
-          const k = `${t.x},${t.y}`;
-          p.territory.add(k);
-        });
         
-        // Pass a copy to avoid mutation issues during calculation
-        const captured = captureEnclosedAreas(new Set(p.territory));
-        captured.forEach(k => {
-          p.territory.add(k);
-          // Steal from others
-          this.players.forEach(other => {
-            if (other.id !== p.id) other.territory.delete(k);
-          });
+        // Check if we hit someone else's trail
+        this.players.forEach((otherP, otherPid) => {
+          if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
+            this.killPlayer(otherPid);
+          }
         });
-        
-        p.trail = [];
-        p.trailSet.clear();
-        p.updateScore();
-        this.callbacks.onScoreUpdate(p.score);
       }
     }
 
