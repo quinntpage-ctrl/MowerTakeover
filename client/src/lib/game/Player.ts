@@ -44,6 +44,7 @@ export class PlayerState {
     const gridX = Math.floor(startX / 30);
     const gridY = Math.floor(startY / 30);
     
+    this.territory.clear();
     for (let dx = -2; dx <= 2; dx++) {
       for (let dy = -2; dy <= 2; dy++) {
         const nx = gridX + dx;
