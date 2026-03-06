@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import GameCanvas from "./GameCanvas";
+import GameCanvas from "@/components/game/GameCanvas";
 import { Joystick } from "lucide-react";
 
 export default function Home() {
