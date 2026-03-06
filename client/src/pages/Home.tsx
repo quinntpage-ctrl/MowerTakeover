@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
-import { Joystick, Flame, Scissors, Star, Smile, Crown } from "lucide-react";
+import { Joystick, Flame, Scissors, Star, Smile, Crown, Info, ArrowLeft, Crosshair, Skull } from "lucide-react";
 import { PLAYER_COLORS } from "@/lib/game/Constants";
 
 export default function Home() {
-  const [gameState, setGameState] = useState<"menu" | "playing" | "gameover">("menu");
+  const [gameState, setGameState] = useState<"menu" | "playing" | "gameover" | "tutorial">("menu");
   const [playerName, setPlayerName] = useState("");
   const [score, setScore] = useState(0);
   const [fireballs, setFireballs] = useState(0);
@@ -197,6 +197,17 @@ export default function Home() {
             >
               Start Mowing
             </Button>
+            
+            <Button 
+              type="button" 
+              variant="outline"
+              onClick={() => setGameState("tutorial")}
+              className="w-full h-12 text-lg font-bold rounded-2xl shadow-sm hover:shadow-md transition-all border-2 border-primary/20 hover:border-primary/50 text-foreground/80 hover:text-foreground mt-2 flex items-center justify-center gap-2 bg-white/50"
+              data-testid="button-tutorial"
+            >
+              <Info className="w-5 h-5" />
+              How to Play
+            </Button>
           </form>
 
           <div className="mt-8 flex justify-center gap-4 text-sm text-muted-foreground/80 font-bold">
@@ -209,6 +220,71 @@ export default function Home() {
               <span>Mobile</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TUTORIAL SCREEN */}
+      {gameState === "tutorial" && (
+        <div className="z-10 glass-panel p-6 md:p-10 rounded-3xl shadow-2xl max-w-lg w-full mx-4 border-2 border-white/50 animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="flex items-center mb-6 relative">
+            <button 
+              onClick={() => setGameState("menu")}
+              className="absolute left-0 p-2 rounded-full hover:bg-black/5 transition-colors"
+              aria-label="Back to menu"
+            >
+              <ArrowLeft className="w-6 h-6 text-foreground/70" />
+            </button>
+            <h2 className="text-3xl font-display text-primary w-full text-center">How to Play</h2>
+          </div>
+
+          <div className="space-y-6 text-left">
+            <div className="flex gap-4 items-start bg-white/40 p-4 rounded-2xl border border-white">
+              <div className="bg-green-100 p-3 rounded-xl shrink-0">
+                <Joystick className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-1">Steer Your Mower</h3>
+                <p className="text-muted-foreground text-sm">Use <kbd className="bg-white/80 px-1.5 py-0.5 rounded shadow-sm text-xs mx-1">WASD</kbd> or <kbd className="bg-white/80 px-1.5 py-0.5 rounded shadow-sm text-xs mx-1">Arrows</kbd> on desktop. On mobile, just <strong>swipe</strong> in the direction you want to go.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4 items-start bg-white/40 p-4 rounded-2xl border border-white">
+              <div className="bg-primary/10 p-3 rounded-xl shrink-0">
+                <Crosshair className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-1">Capture Territory</h3>
+                <p className="text-muted-foreground text-sm">Leave your base to draw a trail. Connect your trail back to your own territory to capture the enclosed area. The more you capture, the higher your score!</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4 items-start bg-white/40 p-4 rounded-2xl border border-white">
+              <div className="bg-orange-100 p-3 rounded-xl shrink-0">
+                <Flame className="w-6 h-6 text-orange-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-1">Shoot Fireballs</h3>
+                <p className="text-muted-foreground text-sm">Drive over fireballs to collect them. Press <kbd className="bg-white/80 px-1.5 py-0.5 rounded shadow-sm text-xs mx-1">SPACE</kbd> to shoot! Hits will burn away 5x5 chunks of enemy territory or eliminate players.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4 items-start bg-white/40 p-4 rounded-2xl border border-white">
+              <div className="bg-red-100 p-3 rounded-xl shrink-0">
+                <Skull className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg mb-1">Don't Get Wasted</h3>
+                <p className="text-muted-foreground text-sm">You die if another player drives into your trail before you return to base, if you hit your own trail, or if you get hit directly by a fireball.</p>
+              </div>
+            </div>
+          </div>
+
+          <Button 
+            onClick={() => setGameState("menu")}
+            className="w-full h-14 text-xl font-display rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90 mt-8"
+          >
+            Got it!
+          </Button>
         </div>
       )}
 
