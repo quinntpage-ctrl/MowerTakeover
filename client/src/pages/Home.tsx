@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
-import { Joystick, Flame, Scissors } from "lucide-react";
+import { Joystick, Flame, Scissors, Star, Smile } from "lucide-react";
 import { PLAYER_COLORS } from "@/lib/game/Constants";
 
 export default function Home() {
@@ -11,7 +11,7 @@ export default function Home() {
   const [score, setScore] = useState(0);
   const [leaderboard, setLeaderboard] = useState<{name: string, score: number, color: string}[]>([]);
   const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
-  const [trailType, setTrailType] = useState<"grass" | "flame">("grass");
+  const [trailType, setTrailType] = useState<"grass" | "flame" | "star" | "smile">("grass");
 
   // Simple state management for the mockup
   const startGame = (e: React.FormEvent) => {
@@ -132,22 +132,38 @@ export default function Home() {
 
             <div className="space-y-3">
               <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider block text-left">Trail Effect</label>
-              <div className="flex gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setTrailType("grass")}
-                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${trailType === 'grass' ? 'border-primary bg-primary/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${trailType === 'grass' ? 'border-primary bg-primary/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
-                  <Scissors className={`w-8 h-8 ${trailType === 'grass' ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-sm">Grass Clippings</span>
+                  <Scissors className={`w-6 h-6 ${trailType === 'grass' ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-xs">Clippings</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setTrailType("flame")}
-                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${trailType === 'flame' ? 'border-orange-500 bg-orange-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${trailType === 'flame' ? 'border-orange-500 bg-orange-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
-                  <Flame className={`w-8 h-8 ${trailType === 'flame' ? 'text-orange-500' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-sm">Flame Trail</span>
+                  <Flame className={`w-6 h-6 ${trailType === 'flame' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-xs">Flame</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrailType("star")}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${trailType === 'star' ? 'border-yellow-400 bg-yellow-400/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                >
+                  <Star className={`w-6 h-6 ${trailType === 'star' ? 'text-yellow-400' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-xs">Stars</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrailType("smile")}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${trailType === 'smile' ? 'border-blue-500 bg-blue-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                >
+                  <Smile className={`w-6 h-6 ${trailType === 'smile' ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-xs">Smiles</span>
                 </button>
               </div>
             </div>

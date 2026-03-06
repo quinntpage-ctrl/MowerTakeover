@@ -21,9 +21,9 @@ export class PlayerState {
   deathReason: string;
   score: number;
   isBot: boolean;
-  trailType: "grass" | "flame";
+  trailType: "grass" | "flame" | "star" | "smile";
 
-  constructor(id: string, name: string, color: string, startX: number, startY: number, isBot: boolean = false, trailType: "grass" | "flame" = "grass") {
+  constructor(id: string, name: string, color: string, startX: number, startY: number, isBot: boolean = false, trailType: "grass" | "flame" | "star" | "smile" = "grass") {
     this.id = id;
     this.name = name;
     this.color = color;

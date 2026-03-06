@@ -50,9 +50,9 @@ export class GameEngine {
   private particles: Particle[] = [];
   private claimFlashes: ClaimFlash[] = [];
 
-  private trailType: "grass" | "flame" = "grass";
+  private trailType: "grass" | "flame" | "star" | "smile" = "grass";
 
-  constructor(canvas: HTMLCanvasElement, playerName: string, playerColor: string = PLAYER_COLORS[0], trailType: "grass" | "flame" = "grass", callbacks: GameCallbacks) {
+  constructor(canvas: HTMLCanvasElement, playerName: string, playerColor: string = PLAYER_COLORS[0], trailType: "grass" | "flame" | "star" | "smile" = "grass", callbacks: GameCallbacks) {
     this.canvas = canvas;
     const context = canvas.getContext('2d', { alpha: false });
     if (!context) throw new Error("Could not get 2d context");
@@ -448,6 +448,72 @@ export class GameEngine {
                      rotation: Math.random() * Math.PI * 2,
                      vRot: (Math.random() - 0.5) * 5
                   });
+              } else if (p.trailType === "star") {
+                  // Stars shoot out behind the mower
+                  if (p.direction === 'UP') {
+                      vx = (Math.random() - 0.5) * 30;
+                      vy = 30 + Math.random() * 20;
+                      py += 15;
+                  } else if (p.direction === 'DOWN') {
+                      vx = (Math.random() - 0.5) * 30;
+                      vy = -30 - Math.random() * 20;
+                      py -= 15;
+                  } else if (p.direction === 'LEFT') {
+                      vx = 30 + Math.random() * 20;
+                      vy = (Math.random() - 0.5) * 30;
+                      px += 15;
+                  } else if (p.direction === 'RIGHT') {
+                      vx = -30 - Math.random() * 20;
+                      vy = (Math.random() - 0.5) * 30;
+                      px -= 15;
+                  }
+                  
+                  this.particles.push({
+                     x: px + (Math.random() - 0.5) * 10,
+                     y: py + (Math.random() - 0.5) * 10,
+                     vx: vx,
+                     vy: vy,
+                     life: Math.random() * 0.5 + 0.5,
+                     maxLife: 1.0,
+                     color: '#fef08a', // Yellow star color
+                     size: Math.random() * 4 + 4,
+                     rotation: Math.random() * Math.PI * 2,
+                     vRot: (Math.random() - 0.5) * 2,
+                     type: 'star'
+                  } as Particle & {type: string});
+              } else if (p.trailType === "smile") {
+                  // Smileys drop behind
+                  if (p.direction === 'UP') {
+                      vx = (Math.random() - 0.5) * 10;
+                      vy = 10 + Math.random() * 10;
+                      py += 15;
+                  } else if (p.direction === 'DOWN') {
+                      vx = (Math.random() - 0.5) * 10;
+                      vy = -10 - Math.random() * 10;
+                      py -= 15;
+                  } else if (p.direction === 'LEFT') {
+                      vx = 10 + Math.random() * 10;
+                      vy = (Math.random() - 0.5) * 10;
+                      px += 15;
+                  } else if (p.direction === 'RIGHT') {
+                      vx = -10 - Math.random() * 10;
+                      vy = (Math.random() - 0.5) * 10;
+                      px -= 15;
+                  }
+                  
+                  this.particles.push({
+                     x: px + (Math.random() - 0.5) * 5,
+                     y: py + (Math.random() - 0.5) * 5,
+                     vx: vx,
+                     vy: vy,
+                     life: Math.random() * 0.8 + 0.4,
+                     maxLife: 1.2,
+                     color: '#fbbf24', // Yellow face
+                     size: Math.random() * 6 + 8, // larger for face
+                     rotation: Math.random() * Math.PI * 2,
+                     vRot: (Math.random() - 0.5) * 1,
+                     type: 'smile'
+                  } as Particle & {type: string});
               } else {
                   if (p.direction === 'UP') {
                       vx = 80 + Math.random() * 40;
@@ -895,15 +961,54 @@ export class GameEngine {
       this.ctx.globalAlpha = 1.0;
     });
 
-    // 5. Draw Particles (Grass Clippings)
+    // 5. Draw Particles (Grass Clippings, Flames, Stars, etc.)
     this.particles.forEach(p => {
         if (p.x >= startX && p.x <= endX && p.y >= startY && p.y <= endY) {
             this.ctx.save();
             this.ctx.translate(p.x, p.y);
             this.ctx.rotate(p.rotation);
             this.ctx.globalAlpha = p.life / p.maxLife;
-            this.ctx.fillStyle = p.color;
-            this.ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+            
+            const pAny = p as any;
+            
+            if (pAny.type === 'star') {
+                // Draw a 5-point star
+                this.ctx.fillStyle = p.color;
+                this.ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    this.ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * p.size,
+                                    -Math.sin((18 + i * 72) * Math.PI / 180) * p.size);
+                    this.ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * (p.size * 0.5),
+                                    -Math.sin((54 + i * 72) * Math.PI / 180) * (p.size * 0.5));
+                }
+                this.ctx.closePath();
+                this.ctx.fill();
+            } else if (pAny.type === 'smile') {
+                // Draw a smiley face
+                this.ctx.fillStyle = p.color;
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Eyes
+                this.ctx.fillStyle = '#000';
+                this.ctx.beginPath();
+                this.ctx.arc(-p.size*0.3, -p.size*0.2, p.size*0.15, 0, Math.PI * 2);
+                this.ctx.arc(p.size*0.3, -p.size*0.2, p.size*0.15, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Smile
+                this.ctx.strokeStyle = '#000';
+                this.ctx.lineWidth = p.size*0.1;
+                this.ctx.beginPath();
+                this.ctx.arc(0, p.size*0.1, p.size*0.5, 0.1, Math.PI - 0.1);
+                this.ctx.stroke();
+            } else {
+                // Default square particle (grass/flame)
+                this.ctx.fillStyle = p.color;
+                this.ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+            }
+            
             this.ctx.restore();
         }
     });

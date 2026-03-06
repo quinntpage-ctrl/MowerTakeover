@@ -4,7 +4,7 @@ import { GameEngine } from '@/lib/game/Engine';
 interface GameCanvasProps {
   playerName: string;
   playerColor?: string;
-  trailType?: "grass" | "flame";
+  trailType?: "grass" | "flame" | "star" | "smile";
   onGameOver: (score: number) => void;
   onScoreUpdate: (score: number) => void;
   onLeaderboardUpdate: (leaderboard: {name: string, score: number, color: string}[]) => void;
