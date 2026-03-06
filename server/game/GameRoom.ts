@@ -282,20 +282,6 @@ export class GameRoom {
       p.y = Math.max(0, Math.min(WORLD_HEIGHT - 0.001, p.y));
 
       if (p.x <= 0 || p.x >= WORLD_WIDTH - 0.01 || p.y <= 0 || p.y >= WORLD_HEIGHT - 0.01) {
-        if (p.isBot) {
-          p.x = Math.max(CELL_SIZE, Math.min(WORLD_WIDTH - CELL_SIZE, p.x));
-          p.y = Math.max(CELL_SIZE, Math.min(WORLD_HEIGHT - CELL_SIZE, p.y));
-          const awayFromWall: Direction[] = [];
-          if (p.x <= CELL_SIZE) awayFromWall.push('RIGHT');
-          if (p.x >= WORLD_WIDTH - CELL_SIZE) awayFromWall.push('LEFT');
-          if (p.y <= CELL_SIZE) awayFromWall.push('DOWN');
-          if (p.y >= WORLD_HEIGHT - CELL_SIZE) awayFromWall.push('UP');
-          if (awayFromWall.length > 0) {
-            p.nextDirection = awayFromWall[Math.floor(Math.random() * awayFromWall.length)];
-            p.direction = p.nextDirection;
-          }
-          return;
-        }
         this.killPlayer(p.id, 'wall-collision');
         return;
       }
@@ -369,11 +355,6 @@ export class GameRoom {
           const justLeftSafeZone = p.territory.has(oldCellKey);
 
           if (isSelfCollision && !isRecentTrail && !justLeftSafeZone) {
-            if (p.isBot) {
-              p.trail = [];
-              p.trailSet.clear();
-              return;
-            }
             this.killPlayer(p.id, 'self-collision');
             return;
           }
