@@ -308,13 +308,15 @@ export class GameEngine {
     const endGridY = Math.min(GRID_SIZE, Math.ceil((this.camera.y + this.height / 2) / CELL_SIZE));
     
     this.ctx.beginPath();
+    this.ctx.strokeStyle = COLORS.grid;
+    this.ctx.lineWidth = 1;
     for (let x = startGridX; x <= endGridX; x++) {
-      this.ctx.moveTo(x * CELL_SIZE, startGridY * CELL_SIZE);
-      this.ctx.lineTo(x * CELL_SIZE, endGridY * CELL_SIZE);
+      this.ctx.moveTo(x * CELL_SIZE, 0);
+      this.ctx.lineTo(x * CELL_SIZE, WORLD_HEIGHT);
     }
     for (let y = startGridY; y <= endGridY; y++) {
-      this.ctx.moveTo(startGridX * CELL_SIZE, y * CELL_SIZE);
-      this.ctx.lineTo(endGridX * CELL_SIZE, y * CELL_SIZE);
+      this.ctx.moveTo(0, y * CELL_SIZE);
+      this.ctx.lineTo(WORLD_WIDTH, y * CELL_SIZE);
     }
     this.ctx.stroke();
 
