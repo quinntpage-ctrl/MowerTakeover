@@ -635,13 +635,26 @@ export class GameEngine {
 
         // 2. Trail (Mowing in progress)
         this.ctx.fillStyle = p.color + 'AA';
-        p.trail.forEach(t => {
-          if (t.x * CELL_SIZE >= startX - CELL_SIZE && t.x * CELL_SIZE <= endX &&
-              t.y * CELL_SIZE >= startY - CELL_SIZE && t.y * CELL_SIZE <= endY) {
-            // Trail looks like a fresh cut path
-            this.ctx.fillRect(t.x * CELL_SIZE + 4, t.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+        if (p.trail.length > 0) {
+          this.ctx.beginPath();
+          
+          // Start from mower position instead of just cell centers for a smoother line
+          const firstPoint = p.trail[0];
+          this.ctx.moveTo(firstPoint.x * CELL_SIZE + CELL_SIZE/2, firstPoint.y * CELL_SIZE + CELL_SIZE/2);
+          
+          for (let i = 1; i < p.trail.length; i++) {
+              this.ctx.lineTo(p.trail[i].x * CELL_SIZE + CELL_SIZE/2, p.trail[i].y * CELL_SIZE + CELL_SIZE/2);
           }
-        });
+          
+          // Connect perfectly to the mower's current center to eliminate visual gaps
+          this.ctx.lineTo(p.x, p.y);
+          
+          this.ctx.strokeStyle = p.color + 'AA';
+          this.ctx.lineWidth = CELL_SIZE * 0.8; // slightly thinner than full cell
+          this.ctx.lineCap = 'round';
+          this.ctx.lineJoin = 'round';
+          this.ctx.stroke();
+        }
 
         // 3. Mower Sprite
         this.ctx.save();
