@@ -462,22 +462,63 @@ export class GameEngine {
         p.isDead = false;
         p.deathAlpha = 1.0;
         
-        // Pick a new random spot for the bot
-        const rx = Math.random() * (WORLD_WIDTH * 0.8) + (WORLD_WIDTH * 0.1);
-        const ry = Math.random() * (WORLD_HEIGHT * 0.8) + (WORLD_HEIGHT * 0.1);
+        let spawnFound = false;
+        let rx = 0;
+        let ry = 0;
+        let gridX = 0;
+        let gridY = 0;
+        let attempts = 0;
+        const maxAttempts = 50;
+
+        // Try to find a spawn location that doesn't overlap any player's territory
+        while (!spawnFound && attempts < maxAttempts) {
+            rx = Math.random() * (WORLD_WIDTH * 0.8) + (WORLD_WIDTH * 0.1);
+            ry = Math.random() * (WORLD_HEIGHT * 0.8) + (WORLD_HEIGHT * 0.1);
+            
+            gridX = Math.floor(rx / CELL_SIZE);
+            gridY = Math.floor(ry / CELL_SIZE);
+            
+            let overlap = false;
+            // Check a 7x7 area around the potential spawn
+            for (let dx = -3; dx <= 3; dx++) {
+                for (let dy = -3; dy <= 3; dy++) {
+                    const nx = gridX + dx;
+                    const ny = gridY + dy;
+                    const key = `${nx},${ny}`;
+                    
+                    // See if any active player owns this cell
+                    for (const [id, other] of this.players.entries()) {
+                        if (!other.isDead && other.territory.has(key)) {
+                            overlap = true;
+                            break;
+                        }
+                    }
+                    if (overlap) break;
+                }
+                if (overlap) break;
+            }
+            
+            if (!overlap) {
+                spawnFound = true;
+            }
+            attempts++;
+        }
+
+        // If we couldn't find a clean spot after max attempts (map is very full), 
+        // just use the last random spot we generated.
         
-        p.x = Math.floor(rx / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
-        p.y = Math.floor(ry / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+        p.x = gridX * CELL_SIZE + CELL_SIZE / 2;
+        p.y = gridY * CELL_SIZE + CELL_SIZE / 2;
         
         // Re-initialize their territory to a fresh 7x7 square
         p.territory.clear();
-        const gridX = Math.floor(p.x / CELL_SIZE);
-        const gridY = Math.floor(p.y / CELL_SIZE);
+        const startGridX = Math.floor(p.x / CELL_SIZE);
+        const startGridY = Math.floor(p.y / CELL_SIZE);
         
         for (let dx = -3; dx <= 3; dx++) {
             for (let dy = -3; dy <= 3; dy++) {
-                const nx = gridX + dx;
-                const ny = gridY + dy;
+                const nx = startGridX + dx;
+                const ny = startGridY + dy;
                 if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
                     const key = `${nx},${ny}`;
                     p.territory.add(key);
