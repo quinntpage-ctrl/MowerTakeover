@@ -110,34 +110,32 @@ export default function Home() {
       )}
 
       {gameState === "menu" && (
-        <div className="z-10 glass-panel p-5 md:p-10 rounded-2xl md:rounded-3xl shadow-2xl max-w-sm md:max-w-md w-full mx-3 md:mx-4 border-2 border-white/50 animate-in fade-in zoom-in duration-500 max-h-[92vh] overflow-y-auto custom-scrollbar">
-          <div className="text-center mb-4 md:mb-8 animate-float flex flex-col items-center">
-            <img src="/logo.svg" alt="Mower Logo" className="h-12 md:h-20 mb-2 md:mb-4 drop-shadow-lg" />
-            <p className="text-muted-foreground font-bold italic text-sm md:text-base">Capture the landscape. Claim your territory.</p>
+        <div className="z-10 glass-panel p-3 md:p-8 rounded-2xl md:rounded-3xl shadow-2xl max-w-xs md:max-w-md w-full mx-3 border-2 border-white/50 animate-in fade-in zoom-in duration-500">
+          <div className="text-center mb-2 md:mb-6 animate-float flex flex-col items-center">
+            <img src="/logo.svg" alt="Mower Logo" className="h-8 md:h-16 mb-1 md:mb-3 drop-shadow-lg" />
+            <p className="text-muted-foreground font-bold italic text-xs md:text-base">Capture the landscape. Claim your territory.</p>
           </div>
 
-          <form onSubmit={startGame} className="space-y-3 md:space-y-5">
-            <div>
-              <Input 
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Enter your nickname..."
-                className="h-10 md:h-14 text-center text-base md:text-xl font-bold rounded-xl md:rounded-2xl border-2 border-primary/20 focus-visible:ring-primary focus-visible:border-primary shadow-inner bg-white/80"
-                maxLength={12}
-                autoFocus
-                data-testid="input-player-name"
-              />
-            </div>
+          <form onSubmit={startGame} className="space-y-2 md:space-y-4">
+            <Input 
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              placeholder="Enter your nickname..."
+              className="h-9 md:h-12 text-center text-sm md:text-lg font-bold rounded-lg md:rounded-xl border-2 border-primary/20 focus-visible:ring-primary focus-visible:border-primary shadow-inner bg-white/80"
+              maxLength={12}
+              autoFocus
+              data-testid="input-player-name"
+            />
             
-            <div className="space-y-2 md:space-y-3">
-              <label className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wider block text-left">Choose Color</label>
-              <div className="flex flex-wrap gap-2 md:gap-3 justify-center">
+            <div className="space-y-1 md:space-y-2">
+              <label className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-wider block text-left">Color</label>
+              <div className="flex flex-wrap gap-1.5 md:gap-2 justify-center">
                 {PLAYER_COLORS.map(color => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setSelectedColor(color)}
-                    className={`w-8 h-8 md:w-10 md:h-10 rounded-full transition-transform ${selectedColor === color ? 'scale-125 ring-4 ring-white shadow-lg' : 'hover:scale-110 shadow-md'}`}
+                    className={`w-6 h-6 md:w-8 md:h-8 rounded-full transition-transform ${selectedColor === color ? 'scale-125 ring-3 ring-white shadow-lg' : 'hover:scale-110 shadow-sm'}`}
                     style={{ backgroundColor: color }}
                     aria-label={`Select color ${color}`}
                   />
@@ -145,47 +143,47 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="space-y-2 md:space-y-3">
-              <label className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wider block text-left">Trail Effect</label>
-              <div className="grid grid-cols-4 md:grid-cols-2 gap-2 md:gap-3">
+            <div className="space-y-1 md:space-y-2">
+              <label className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-wider block text-left">Trail</label>
+              <div className="grid grid-cols-4 gap-1.5 md:gap-2">
                 <button
                   type="button"
                   onClick={() => setTrailType("grass")}
-                  className={`flex flex-col items-center gap-1 md:gap-2 p-2 md:p-3 rounded-xl border-2 transition-all ${trailType === 'grass' ? 'border-primary bg-primary/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                  className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'grass' ? 'border-primary bg-primary/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
-                  <Scissors className={`w-5 h-5 md:w-6 md:h-6 ${trailType === 'grass' ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-[10px] md:text-xs">Clippings</span>
+                  <Scissors className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'grass' ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-[8px] md:text-[10px]">Clips</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setTrailType("flame")}
-                  className={`flex flex-col items-center gap-1 md:gap-2 p-2 md:p-3 rounded-xl border-2 transition-all ${trailType === 'flame' ? 'border-orange-500 bg-orange-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                  className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'flame' ? 'border-orange-500 bg-orange-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
-                  <Flame className={`w-5 h-5 md:w-6 md:h-6 ${trailType === 'flame' ? 'text-orange-500' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-[10px] md:text-xs">Flame</span>
+                  <Flame className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'flame' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-[8px] md:text-[10px]">Flame</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setTrailType("star")}
-                  className={`flex flex-col items-center gap-1 md:gap-2 p-2 md:p-3 rounded-xl border-2 transition-all ${trailType === 'star' ? 'border-yellow-400 bg-yellow-400/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                  className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'star' ? 'border-yellow-400 bg-yellow-400/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
-                  <Star className={`w-5 h-5 md:w-6 md:h-6 ${trailType === 'star' ? 'text-yellow-400' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-[10px] md:text-xs">Stars</span>
+                  <Star className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'star' ? 'text-yellow-400' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-[8px] md:text-[10px]">Stars</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setTrailType("smile")}
-                  className={`flex flex-col items-center gap-1 md:gap-2 p-2 md:p-3 rounded-xl border-2 transition-all ${trailType === 'smile' ? 'border-blue-500 bg-blue-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                  className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'smile' ? 'border-blue-500 bg-blue-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
-                  <Smile className={`w-5 h-5 md:w-6 md:h-6 ${trailType === 'smile' ? 'text-blue-500' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-[10px] md:text-xs">Smiles</span>
+                  <Smile className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'smile' ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-[8px] md:text-[10px]">Smiles</span>
                 </button>
               </div>
             </div>
 
             <Button 
               type="submit" 
-              className="w-full h-11 md:h-14 text-lg md:text-xl font-display rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90"
+              className="w-full h-9 md:h-12 text-base md:text-lg font-display rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90"
               disabled={!playerName.trim()}
               data-testid="button-play"
             >
@@ -196,21 +194,21 @@ export default function Home() {
               type="button" 
               variant="outline"
               onClick={() => setGameState("tutorial")}
-              className="w-full h-9 md:h-12 text-base md:text-lg font-bold rounded-xl md:rounded-2xl shadow-sm hover:shadow-md transition-all border-2 border-primary/20 hover:border-primary/50 text-foreground/80 hover:text-foreground flex items-center justify-center gap-2 bg-white/50"
+              className="w-full h-7 md:h-10 text-sm md:text-base font-bold rounded-lg md:rounded-xl shadow-sm border-2 border-primary/20 hover:border-primary/50 text-foreground/80 hover:text-foreground flex items-center justify-center gap-1.5 bg-white/50"
               data-testid="button-tutorial"
             >
-              <Info className="w-4 h-4 md:w-5 md:h-5" />
+              <Info className="w-3.5 h-3.5 md:w-4 md:h-4" />
               How to Play
             </Button>
           </form>
 
-          <div className="mt-4 md:mt-8 flex justify-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground/80 font-bold">
-            <div className="flex flex-col items-center">
-              <kbd className="bg-white/50 px-1.5 md:px-2 py-0.5 md:py-1 rounded shadow-sm border border-white mb-1 text-xs">WASD / Arrows</kbd>
+          <div className="mt-2 md:mt-5 flex justify-center gap-3 text-[10px] md:text-xs text-muted-foreground/80 font-bold">
+            <div className="flex items-center gap-1">
+              <kbd className="bg-white/50 px-1 py-0.5 rounded shadow-sm border border-white text-[10px]">WASD</kbd>
               <span>Desktop</span>
             </div>
-            <div className="flex flex-col items-center">
-              <kbd className="bg-white/50 px-1.5 md:px-2 py-0.5 md:py-1 rounded shadow-sm border border-white mb-1 text-xs">Swipe</kbd>
+            <div className="flex items-center gap-1">
+              <kbd className="bg-white/50 px-1 py-0.5 rounded shadow-sm border border-white text-[10px]">Swipe</kbd>
               <span>Mobile</span>
             </div>
           </div>
