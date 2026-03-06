@@ -518,7 +518,7 @@ export class GameEngine {
   }
 
   private draw() {
-    this.ctx.fillStyle = COLORS.bg;
+    this.ctx.fillStyle = '#333333'; // completely grey outside
     this.ctx.fillRect(0, 0, this.width, this.height);
     
     this.ctx.save();
@@ -533,35 +533,41 @@ export class GameEngine {
     const startY = Math.floor((this.camera.y - this.height/2) / CELL_SIZE) * CELL_SIZE;
     const endY = startY + this.height + CELL_SIZE * 2;
 
-    // Draw Grid (unmowed grass texture base)
-    this.ctx.fillStyle = '#86efac'; // Light green for unmowed grass
-    this.ctx.fillRect(Math.max(0, startX), Math.max(0, startY), endX - startX, endY - startY);
-    
-    // Add some "grass" texture
-    this.ctx.fillStyle = '#4ade80';
-    for (let x = Math.max(0, Math.floor(startX / CELL_SIZE) * CELL_SIZE); x <= Math.min(WORLD_WIDTH, endX); x += CELL_SIZE) {
-        for (let y = Math.max(0, Math.floor(startY / CELL_SIZE) * CELL_SIZE); y <= Math.min(WORLD_HEIGHT, endY); y += CELL_SIZE) {
-            // Draw a few blades of grass per cell for texture
-            if ((x + y) % 3 === 0) {
-                 this.ctx.fillRect(x + 5, y + 5, 2, 6);
-                 this.ctx.fillRect(x + 15, y + 12, 2, 5);
-                 this.ctx.fillRect(x + 22, y + 4, 2, 7);
+    const grassStartX = Math.max(0, startX);
+    const grassStartY = Math.max(0, startY);
+    const grassEndX = Math.min(WORLD_WIDTH, endX);
+    const grassEndY = Math.min(WORLD_HEIGHT, endY);
+
+    if (grassEndX > grassStartX && grassEndY > grassStartY) {
+        // Draw Grid (unmowed grass texture base)
+        this.ctx.fillStyle = '#86efac'; // Light green for unmowed grass
+        this.ctx.fillRect(grassStartX, grassStartY, grassEndX - grassStartX, grassEndY - grassStartY);
+        
+        // Add some "grass" texture
+        this.ctx.fillStyle = '#4ade80';
+        for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x <= grassEndX; x += CELL_SIZE) {
+            for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y <= grassEndY; y += CELL_SIZE) {
+                if ((x + y) % 3 === 0) {
+                     this.ctx.fillRect(x + 5, y + 5, 2, 6);
+                     this.ctx.fillRect(x + 15, y + 12, 2, 5);
+                     this.ctx.fillRect(x + 22, y + 4, 2, 7);
+                }
             }
         }
-    }
 
-    this.ctx.strokeStyle = '#22c55e'; // darker green grid
-    this.ctx.lineWidth = 1;
-    this.ctx.beginPath();
-    for (let x = Math.max(0, Math.floor(startX / CELL_SIZE) * CELL_SIZE); x <= Math.min(WORLD_WIDTH, endX); x += CELL_SIZE) {
-      this.ctx.moveTo(x, Math.max(0, startY));
-      this.ctx.lineTo(x, Math.min(WORLD_HEIGHT, endY));
+        this.ctx.strokeStyle = '#22c55e'; // darker green grid
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x <= grassEndX; x += CELL_SIZE) {
+          this.ctx.moveTo(x, Math.max(0, grassStartY));
+          this.ctx.lineTo(x, Math.min(WORLD_HEIGHT, grassEndY));
+        }
+        for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y <= grassEndY; y += CELL_SIZE) {
+          this.ctx.moveTo(Math.max(0, grassStartX), y);
+          this.ctx.lineTo(Math.min(WORLD_WIDTH, grassEndX), y);
+        }
+        this.ctx.stroke();
     }
-    for (let y = Math.max(0, Math.floor(startY / CELL_SIZE) * CELL_SIZE); y <= Math.min(WORLD_HEIGHT, endY); y += CELL_SIZE) {
-      this.ctx.moveTo(Math.max(0, startX), y);
-      this.ctx.lineTo(Math.min(WORLD_WIDTH, endX), y);
-    }
-    this.ctx.stroke();
 
     // Draw the deadly pink border
     this.ctx.strokeStyle = '#EC098D';
@@ -571,51 +577,33 @@ export class GameEngine {
     this.ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.ctx.shadowBlur = 0; // reset
 
-    // Warning Logo on Border Approach
+    // Warning Logo on Outside of Border
     const lp = this.players.get(this.localPlayerId);
-    if (lp && !lp.isDead) {
-        const distLeft = lp.x;
-        const distRight = WORLD_WIDTH - lp.x;
-        const distTop = lp.y;
-        const distBottom = WORLD_HEIGHT - lp.y;
-        const minDist = Math.min(distLeft, distRight, distTop, distBottom);
-        const threshold = 400; // start fading in 400px away
-        
-        if (minDist < threshold && this.logoImage.complete && this.logoImage.naturalWidth > 0) {
-            const alpha = 1.0 - Math.max(0, minDist / threshold);
+    if (lp && this.logoImage.complete && this.logoImage.naturalWidth > 0) {
+        const drawOuterLogo = (x: number, y: number, rotation: number) => {
             this.ctx.save();
-            this.ctx.globalAlpha = alpha * 0.9;
-            
-            let logoX = lp.x;
-            let logoY = lp.y;
-            let rotation = 0;
-            const offset = 80;
-            
-            if (minDist === distLeft) {
-                logoX = offset;
-                rotation = Math.PI / 2;
-            } else if (minDist === distRight) {
-                logoX = WORLD_WIDTH - offset;
-                rotation = -Math.PI / 2;
-            } else if (minDist === distTop) {
-                logoY = offset;
-                rotation = 0;
-            } else {
-                logoY = WORLD_HEIGHT - offset;
-                rotation = Math.PI;
-            }
-            
-            this.ctx.translate(logoX, logoY);
+            this.ctx.translate(x, y);
             this.ctx.rotate(rotation);
-            const lw = 300;
-            const lh = 300 * (90.8 / 513.5); 
+            const lw = 400;
+            const lh = 400 * (90.8 / 513.5); 
             
-            this.ctx.shadowColor = '#EC098D';
-            this.ctx.shadowBlur = 10;
-            this.ctx.drawImage(this.logoImage, -lw/2, -lh/2, lw, lh);
+            this.ctx.drawImage(this.logoImage, -lw/2, -lh/2 - 20, lw, lh);
+            
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = 'bold 24px "Neue Haas Grotesk", "Inter", sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText("Go to mower.com to see what we are all about!", 0, lh/2 + 20);
             
             this.ctx.restore();
-        }
+        };
+
+        const px = Math.max(400, Math.min(WORLD_WIDTH - 400, lp.x));
+        const py = Math.max(400, Math.min(WORLD_HEIGHT - 400, lp.y));
+
+        drawOuterLogo(px, -150, 0); // Top
+        drawOuterLogo(px, WORLD_HEIGHT + 150, Math.PI); // Bottom
+        drawOuterLogo(-150, py, -Math.PI / 2); // Left
+        drawOuterLogo(WORLD_WIDTH + 150, py, Math.PI / 2); // Right
     }
 
     this.players.forEach(p => {
