@@ -43,7 +43,7 @@ export class GameRoom {
   private lastTickTime: number = 0;
 
   constructor() {
-    this.spawnBots(5);
+    this.spawnBots(3);
     this.spawnCollectibles(15);
   }
 
@@ -282,6 +282,20 @@ export class GameRoom {
       p.y = Math.max(0, Math.min(WORLD_HEIGHT - 0.001, p.y));
 
       if (p.x <= 0 || p.x >= WORLD_WIDTH - 0.01 || p.y <= 0 || p.y >= WORLD_HEIGHT - 0.01) {
+        if (p.isBot) {
+          p.x = Math.max(CELL_SIZE, Math.min(WORLD_WIDTH - CELL_SIZE, p.x));
+          p.y = Math.max(CELL_SIZE, Math.min(WORLD_HEIGHT - CELL_SIZE, p.y));
+          const awayFromWall: Direction[] = [];
+          if (p.x <= CELL_SIZE) awayFromWall.push('RIGHT');
+          if (p.x >= WORLD_WIDTH - CELL_SIZE) awayFromWall.push('LEFT');
+          if (p.y <= CELL_SIZE) awayFromWall.push('DOWN');
+          if (p.y >= WORLD_HEIGHT - CELL_SIZE) awayFromWall.push('UP');
+          if (awayFromWall.length > 0) {
+            p.nextDirection = awayFromWall[Math.floor(Math.random() * awayFromWall.length)];
+            p.direction = p.nextDirection;
+          }
+          return;
+        }
         this.killPlayer(p.id, 'wall-collision');
         return;
       }
@@ -355,6 +369,11 @@ export class GameRoom {
           const justLeftSafeZone = p.territory.has(oldCellKey);
 
           if (isSelfCollision && !isRecentTrail && !justLeftSafeZone) {
+            if (p.isBot) {
+              p.trail = [];
+              p.trailSet.clear();
+              return;
+            }
             this.killPlayer(p.id, 'self-collision');
             return;
           }
@@ -366,41 +385,176 @@ export class GameRoom {
     });
   }
 
+  private botPhases: Map<string, { phase: 'expand' | 'return'; step: number; expandDir: Direction; expandLen: number }> = new Map();
+
   private updateBot(bot: PlayerState) {
-    if (Math.random() < 0.05) {
-      const cx = Math.floor(bot.x / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
-      const cy = Math.floor(bot.y / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+    const cx = Math.floor(bot.x / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+    const cy = Math.floor(bot.y / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
+    const isHorizontal = bot.direction === 'LEFT' || bot.direction === 'RIGHT';
+    const distToCenter = isHorizontal ? Math.abs(bot.x - cx) : Math.abs(bot.y - cy);
 
-      const isHorizontal = bot.direction === 'LEFT' || bot.direction === 'RIGHT';
-      const distToCenter = isHorizontal ? Math.abs(bot.x - cx) : Math.abs(bot.y - cy);
+    if (distToCenter > 2) return;
 
-      if (distToCenter < 2) {
-        if (bot.trail.length > 15) {
-          let targetX = 0, targetY = 0;
-          bot.territory.forEach(k => {
-            const [tx, ty] = k.split(',').map(Number);
-            targetX += tx;
-            targetY += ty;
-          });
-          if (bot.territory.size > 0) {
-            targetX = (targetX / bot.territory.size) * CELL_SIZE;
-            targetY = (targetY / bot.territory.size) * CELL_SIZE;
-            if (Math.abs(bot.x - targetX) > Math.abs(bot.y - targetY)) {
-              bot.nextDirection = bot.x > targetX ? 'LEFT' : 'RIGHT';
-            } else {
-              bot.nextDirection = bot.y > targetY ? 'UP' : 'DOWN';
-            }
+    let state = this.botPhases.get(bot.id);
+    if (!state) {
+      state = { phase: 'expand', step: 0, expandDir: 'RIGHT', expandLen: 5 + Math.floor(Math.random() * 8) };
+      this.botPhases.set(bot.id, state);
+    }
+
+    const gridX = Math.floor(bot.x / CELL_SIZE);
+    const gridY = Math.floor(bot.y / CELL_SIZE);
+    const cellKey = `${gridX},${gridY}`;
+    const inSafe = bot.territory.has(cellKey);
+
+    const margin = 5;
+    const nearWall = gridX < margin || gridX > GRID_SIZE - margin || gridY < margin || gridY > GRID_SIZE - margin;
+
+    if (bot.trail.length > 25 || nearWall) {
+      state.phase = 'return';
+    }
+
+    if (state.phase === 'expand') {
+      if (inSafe && bot.trail.length === 0) {
+        const terrCenter = this.getBotTerritoryCenter(bot);
+        const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+        const opposite: Record<string, string> = { 'UP': 'DOWN', 'DOWN': 'UP', 'LEFT': 'RIGHT', 'RIGHT': 'LEFT' };
+
+        const bestDir = this.pickBestExpandDirection(bot, gridX, gridY);
+        state.expandDir = bestDir;
+        state.expandLen = 4 + Math.floor(Math.random() * 10);
+        state.step = 0;
+
+        bot.nextDirection = state.expandDir;
+      } else if (!inSafe) {
+        state.step++;
+
+        if (state.step >= state.expandLen) {
+          const turnRight: Record<string, Direction> = { 'UP': 'RIGHT', 'RIGHT': 'DOWN', 'DOWN': 'LEFT', 'LEFT': 'UP' };
+          const turnLeft: Record<string, Direction> = { 'UP': 'LEFT', 'LEFT': 'DOWN', 'DOWN': 'RIGHT', 'RIGHT': 'UP' };
+
+          const turn = Math.random() < 0.5 ? turnRight : turnLeft;
+          bot.nextDirection = turn[bot.direction];
+          state.expandLen = 3 + Math.floor(Math.random() * 8);
+          state.step = 0;
+
+          if (bot.trail.length > 8 + Math.floor(Math.random() * 10)) {
+            state.phase = 'return';
           }
-        } else {
-          const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-          const opposite: Record<string, string> = {
-            'UP': 'DOWN', 'DOWN': 'UP', 'LEFT': 'RIGHT', 'RIGHT': 'LEFT'
-          };
-          const validDirs = dirs.filter(d => d !== opposite[bot.direction]);
-          bot.nextDirection = validDirs[Math.floor(Math.random() * validDirs.length)];
         }
       }
     }
+
+    if (state.phase === 'return') {
+      const target = this.findNearestTerritory(bot, gridX, gridY);
+      if (target) {
+        const dx = target.x - gridX;
+        const dy = target.y - gridY;
+
+        const opposite: Record<string, string> = { 'UP': 'DOWN', 'DOWN': 'UP', 'LEFT': 'RIGHT', 'RIGHT': 'LEFT' };
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+          const desired: Direction = dx > 0 ? 'RIGHT' : 'LEFT';
+          if (desired !== opposite[bot.direction]) {
+            bot.nextDirection = desired;
+          } else {
+            bot.nextDirection = dy >= 0 ? 'DOWN' : 'UP';
+          }
+        } else {
+          const desired: Direction = dy > 0 ? 'DOWN' : 'UP';
+          if (desired !== opposite[bot.direction]) {
+            bot.nextDirection = desired;
+          } else {
+            bot.nextDirection = dx >= 0 ? 'RIGHT' : 'LEFT';
+          }
+        }
+      }
+
+      if (inSafe && bot.trail.length === 0) {
+        state.phase = 'expand';
+        state.step = 0;
+        state.expandLen = 4 + Math.floor(Math.random() * 10);
+      }
+    }
+  }
+
+  private pickBestExpandDirection(bot: PlayerState, gridX: number, gridY: number): Direction {
+    const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+    const opposite: Record<string, string> = { 'UP': 'DOWN', 'DOWN': 'UP', 'LEFT': 'RIGHT', 'RIGHT': 'LEFT' };
+    const validDirs = dirs.filter(d => d !== opposite[bot.direction]);
+
+    let bestDir = validDirs[0];
+    let bestScore = -Infinity;
+
+    for (const dir of validDirs) {
+      let score = 0;
+      const ddx = dir === 'RIGHT' ? 1 : dir === 'LEFT' ? -1 : 0;
+      const ddy = dir === 'DOWN' ? 1 : dir === 'UP' ? -1 : 0;
+
+      for (let step = 1; step <= 10; step++) {
+        const checkX = gridX + ddx * step;
+        const checkY = gridY + ddy * step;
+        const key = `${checkX},${checkY}`;
+
+        if (checkX < 2 || checkX > GRID_SIZE - 2 || checkY < 2 || checkY > GRID_SIZE - 2) {
+          score -= 10;
+          break;
+        }
+
+        if (!bot.territory.has(key)) {
+          score += 2;
+
+          let enemyOwned = false;
+          this.players.forEach(p => {
+            if (p.id !== bot.id && !p.isDead && p.territory.has(key)) {
+              enemyOwned = true;
+            }
+          });
+          if (enemyOwned) score += 3;
+        }
+
+        let dangerTrail = false;
+        this.players.forEach(p => {
+          if (p.id !== bot.id && !p.isDead && p.trailSet.has(key)) {
+            dangerTrail = true;
+          }
+        });
+        if (dangerTrail) score -= 5;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestDir = dir;
+      }
+    }
+
+    return bestDir;
+  }
+
+  private findNearestTerritory(bot: PlayerState, gridX: number, gridY: number): Point | null {
+    let nearest: Point | null = null;
+    let nearestDist = Infinity;
+
+    bot.territory.forEach(k => {
+      const [tx, ty] = k.split(',').map(Number);
+      const dist = Math.abs(tx - gridX) + Math.abs(ty - gridY);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = { x: tx, y: ty };
+      }
+    });
+
+    return nearest;
+  }
+
+  private getBotTerritoryCenter(bot: PlayerState): Point {
+    let sumX = 0, sumY = 0;
+    bot.territory.forEach(k => {
+      const [tx, ty] = k.split(',').map(Number);
+      sumX += tx;
+      sumY += ty;
+    });
+    if (bot.territory.size === 0) return { x: 0, y: 0 };
+    return { x: sumX / bot.territory.size, y: sumY / bot.territory.size };
   }
 
   private respawnBot(p: PlayerState) {
