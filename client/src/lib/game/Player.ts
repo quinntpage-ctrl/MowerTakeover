@@ -17,6 +17,8 @@ export class PlayerState {
   trail: Point[];
   trailSet: Set<string>; 
   isDead: boolean;
+  deathAlpha: number;
+  deathReason: string;
   score: number;
   isBot: boolean;
 
@@ -32,6 +34,8 @@ export class PlayerState {
     this.trail = [];
     this.trailSet = new Set();
     this.isDead = false;
+    this.deathAlpha = 1.0;
+    this.deathReason = '';
     this.score = 0;
     this.isBot = isBot;
     

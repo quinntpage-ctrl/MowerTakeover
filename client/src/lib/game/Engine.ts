@@ -156,7 +156,20 @@ export class GameEngine {
 
   private update(dt: number) {
     this.players.forEach(p => {
-      if (p.isDead) return;
+      if (p.isDead) {
+         if (p.deathAlpha > 0) {
+             p.deathAlpha -= dt * 1.5; // Fade out over ~0.66 seconds
+         } else if (p.deathAlpha <= 0) {
+             if (p.isBot) {
+                this.respawnBot(p);
+             } else if (p.id === this.localPlayerId && p.deathAlpha > -1) {
+                // Ensure we only call Game Over once by setting it to a low negative number
+                p.deathAlpha = -2;
+                this.callbacks.onGameOver(p.score, p.deathReason);
+             }
+         }
+         return;
+      }
 
       // Handle bot logic
       if (p.isBot) {
@@ -363,16 +376,9 @@ export class GameEngine {
     }
   }
 
-  private killPlayer(pid: string, reason: string = 'unknown') {
-    const p = this.players.get(pid);
-    if (!p) return;
-    
-    console.log(`Player ${pid} killed: ${reason}`);
-
-    if (p.isBot) {
-        // Respawn the bot instead of permanently killing it
-        p.trail = [];
-        p.trailSet.clear();
+  private respawnBot(p: PlayerState) {
+        p.isDead = false;
+        p.deathAlpha = 1.0;
         
         // Pick a new random spot for the bot
         const rx = Math.random() * (WORLD_WIDTH * 0.8) + (WORLD_WIDTH * 0.1);
@@ -412,17 +418,22 @@ export class GameEngine {
         
         // Update all scores because clearing/respawning territory might have changed totals
         this.players.forEach(player => player.updateScore());
-    } else {
-        // Human player logic
-        p.isDead = true;
-        p.trail = [];
-        p.trailSet.clear();
-        // Clear territory on death so it becomes available again
-        p.territory.clear();
-        p.updateScore();
-        this.players.forEach(player => player.updateScore());
-        this.callbacks.onGameOver(p.score, reason);
-    }
+  }
+
+  private killPlayer(pid: string, reason: string = 'unknown') {
+    const p = this.players.get(pid);
+    if (!p || p.isDead) return;
+    
+    console.log(`Player ${pid} killed: ${reason}`);
+
+    p.isDead = true;
+    p.deathAlpha = 1.0;
+    p.deathReason = reason;
+    p.trail = [];
+    p.trailSet.clear();
+    p.territory.clear();
+    p.updateScore();
+    this.players.forEach(player => player.updateScore());
   }
 
   private draw() {
@@ -472,8 +483,11 @@ export class GameEngine {
     this.ctx.stroke();
 
     this.players.forEach(p => {
-      if (!p.isDead) {
-        // 1. Territory (Mowed grass)
+      if (p.isDead && p.deathAlpha <= 0) return;
+
+      this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
+
+      // 1. Territory (Mowed grass)
         p.territory.forEach(key => {
           const [cx, cy] = key.split(',').map(Number);
           if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
@@ -547,7 +561,8 @@ export class GameEngine {
         this.ctx.font = 'bold 12px Nunito';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(p.name, p.x, p.y - 25);
-      }
+      
+      this.ctx.globalAlpha = 1.0;
     });
 
     this.ctx.restore();
