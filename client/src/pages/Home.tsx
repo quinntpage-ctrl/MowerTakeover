@@ -2,13 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
-import { Joystick } from "lucide-react";
+import { Joystick, Flame, Scissors } from "lucide-react";
+import { PLAYER_COLORS } from "@/lib/game/Constants";
 
 export default function Home() {
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameover">("menu");
   const [playerName, setPlayerName] = useState("");
   const [score, setScore] = useState(0);
   const [leaderboard, setLeaderboard] = useState<{name: string, score: number, color: string}[]>([]);
+  const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
+  const [trailType, setTrailType] = useState<"grass" | "flame">("grass");
 
   // Simple state management for the mockup
   const startGame = (e: React.FormEvent) => {
@@ -31,6 +34,8 @@ export default function Home() {
       {gameState === "playing" && (
         <GameCanvas 
           playerName={playerName} 
+          playerColor={selectedColor}
+          trailType={trailType}
           onGameOver={handleGameOver}
           onScoreUpdate={setScore}
           onLeaderboardUpdate={setLeaderboard}
@@ -96,7 +101,7 @@ export default function Home() {
             <p className="text-muted-foreground font-bold italic">Capture the landscape. Claim your territory.</p>
           </div>
 
-          <form onSubmit={startGame} className="space-y-4">
+          <form onSubmit={startGame} className="space-y-6">
             <div>
               <Input 
                 value={playerName}
@@ -108,9 +113,48 @@ export default function Home() {
                 data-testid="input-player-name"
               />
             </div>
+            
+            <div className="space-y-3">
+              <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider block text-left">Choose Color</label>
+              <div className="flex flex-wrap gap-3 justify-center">
+                {PLAYER_COLORS.map(color => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setSelectedColor(color)}
+                    className={`w-10 h-10 rounded-full transition-transform ${selectedColor === color ? 'scale-125 ring-4 ring-white shadow-lg' : 'hover:scale-110 shadow-md'}`}
+                    style={{ backgroundColor: color }}
+                    aria-label={`Select color ${color}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider block text-left">Trail Effect</label>
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setTrailType("grass")}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${trailType === 'grass' ? 'border-primary bg-primary/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                >
+                  <Scissors className={`w-8 h-8 ${trailType === 'grass' ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-sm">Grass Clippings</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrailType("flame")}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${trailType === 'flame' ? 'border-orange-500 bg-orange-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
+                >
+                  <Flame className={`w-8 h-8 ${trailType === 'flame' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                  <span className="font-bold text-sm">Flame Trail</span>
+                </button>
+              </div>
+            </div>
+
             <Button 
               type="submit" 
-              className="w-full h-14 text-xl font-display rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90"
+              className="w-full h-14 text-xl font-display rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90 mt-4"
               disabled={!playerName.trim()}
               data-testid="button-play"
             >

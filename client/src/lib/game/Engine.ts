@@ -50,20 +50,21 @@ export class GameEngine {
   private particles: Particle[] = [];
   private claimFlashes: ClaimFlash[] = [];
 
-  private logoImage: HTMLImageElement;
+  private trailType: "grass" | "flame" = "grass";
 
-  constructor(canvas: HTMLCanvasElement, playerName: string, callbacks: GameCallbacks) {
+  constructor(canvas: HTMLCanvasElement, playerName: string, playerColor: string = PLAYER_COLORS[0], trailType: "grass" | "flame" = "grass", callbacks: GameCallbacks) {
     this.canvas = canvas;
     const context = canvas.getContext('2d', { alpha: false });
     if (!context) throw new Error("Could not get 2d context");
     this.ctx = context;
     this.callbacks = callbacks;
+    this.trailType = trailType;
     
     // Load Mower logo
     this.logoImage = new Image();
     this.logoImage.src = '/logo.svg';
 
-    this.initGame(playerName);
+    this.initGame(playerName, playerColor);
     this.spawnBots(5);
     this.setupInputs();
   }
@@ -92,7 +93,7 @@ export class GameEngine {
     }
   }
 
-  private initGame(playerName: string) {
+  private initGame(playerName: string, playerColor: string = PLAYER_COLORS[0]) {
     this.players.clear();
     const centerX = WORLD_WIDTH / 2;
     const centerY = WORLD_HEIGHT / 2;
@@ -101,7 +102,7 @@ export class GameEngine {
     const startX = Math.floor(centerX / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
     const startY = Math.floor(centerY / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
     
-    const localPlayer = new PlayerState(this.localPlayerId, playerName, PLAYER_COLORS[0], startX, startY);
+    const localPlayer = new PlayerState(this.localPlayerId, playerName, playerColor, startX, startY, false, this.trailType);
     localPlayer.direction = 'RIGHT';
     localPlayer.nextDirection = 'RIGHT';
     
@@ -412,36 +413,73 @@ export class GameEngine {
               let py = p.y;
               
               // Shoot clippings out of the right side of the mower deck
-              if (p.direction === 'UP') {
-                  vx = 80 + Math.random() * 40;
-                  vy = (Math.random() - 0.5) * 40;
-                  px += 10;
-              } else if (p.direction === 'DOWN') {
-                  vx = -80 - Math.random() * 40;
-                  vy = (Math.random() - 0.5) * 40;
-                  px -= 10;
-              } else if (p.direction === 'LEFT') {
-                  vx = (Math.random() - 0.5) * 40;
-                  vy = -80 - Math.random() * 40;
-                  py -= 10;
-              } else if (p.direction === 'RIGHT') {
-                  vx = (Math.random() - 0.5) * 40;
-                  vy = 80 + Math.random() * 40;
-                  py += 10;
-              }
+              if (p.trailType === "flame") {
+                  if (p.direction === 'UP') {
+                      vx = (Math.random() - 0.5) * 20;
+                      vy = 40 + Math.random() * 40;
+                      py += 10;
+                  } else if (p.direction === 'DOWN') {
+                      vx = (Math.random() - 0.5) * 20;
+                      vy = -40 - Math.random() * 40;
+                      py -= 10;
+                  } else if (p.direction === 'LEFT') {
+                      vx = 40 + Math.random() * 40;
+                      vy = (Math.random() - 0.5) * 20;
+                      px += 10;
+                  } else if (p.direction === 'RIGHT') {
+                      vx = -40 - Math.random() * 40;
+                      vy = (Math.random() - 0.5) * 20;
+                      px -= 10;
+                  }
+                  
+                  // Flame colors
+                  const colors = ['#f97316', '#ef4444', '#eab308'];
+                  const flameColor = colors[Math.floor(Math.random() * colors.length)];
 
-              this.particles.push({
-                 x: px + (Math.random() - 0.5) * 10,
-                 y: py + (Math.random() - 0.5) * 10,
-                 vx: vx,
-                 vy: vy,
-                 life: Math.random() * 0.3 + 0.2,
-                 maxLife: 0.5,
-                 color: '#4ade80', // bright grass color
-                 size: Math.random() * 3 + 2,
-                 rotation: Math.random() * Math.PI * 2,
-                 vRot: (Math.random() - 0.5) * 15
-              });
+                  this.particles.push({
+                     x: px + (Math.random() - 0.5) * 15,
+                     y: py + (Math.random() - 0.5) * 15,
+                     vx: vx,
+                     vy: vy,
+                     life: Math.random() * 0.4 + 0.3,
+                     maxLife: 0.7,
+                     color: flameColor,
+                     size: Math.random() * 6 + 4,
+                     rotation: Math.random() * Math.PI * 2,
+                     vRot: (Math.random() - 0.5) * 5
+                  });
+              } else {
+                  if (p.direction === 'UP') {
+                      vx = 80 + Math.random() * 40;
+                      vy = (Math.random() - 0.5) * 40;
+                      px += 10;
+                  } else if (p.direction === 'DOWN') {
+                      vx = -80 - Math.random() * 40;
+                      vy = (Math.random() - 0.5) * 40;
+                      px -= 10;
+                  } else if (p.direction === 'LEFT') {
+                      vx = (Math.random() - 0.5) * 40;
+                      vy = -80 - Math.random() * 40;
+                      py -= 10;
+                  } else if (p.direction === 'RIGHT') {
+                      vx = (Math.random() - 0.5) * 40;
+                      vy = 80 + Math.random() * 40;
+                      py += 10;
+                  }
+    
+                  this.particles.push({
+                     x: px + (Math.random() - 0.5) * 10,
+                     y: py + (Math.random() - 0.5) * 10,
+                     vx: vx,
+                     vy: vy,
+                     life: Math.random() * 0.3 + 0.2,
+                     maxLife: 0.5,
+                     color: '#4ade80', // bright grass color
+                     size: Math.random() * 3 + 2,
+                     rotation: Math.random() * Math.PI * 2,
+                     vRot: (Math.random() - 0.5) * 15
+                  });
+              }
           }
       }
     });

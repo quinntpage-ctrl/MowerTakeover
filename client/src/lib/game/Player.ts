@@ -21,8 +21,9 @@ export class PlayerState {
   deathReason: string;
   score: number;
   isBot: boolean;
+  trailType: "grass" | "flame";
 
-  constructor(id: string, name: string, color: string, startX: number, startY: number, isBot: boolean = false) {
+  constructor(id: string, name: string, color: string, startX: number, startY: number, isBot: boolean = false, trailType: "grass" | "flame" = "grass") {
     this.id = id;
     this.name = name;
     this.color = color;
@@ -38,6 +39,7 @@ export class PlayerState {
     this.deathReason = '';
     this.score = 0;
     this.isBot = isBot;
+    this.trailType = trailType;
     
     // Use CELL_SIZE constant
     const gridX = Math.floor(startX / CELL_SIZE);

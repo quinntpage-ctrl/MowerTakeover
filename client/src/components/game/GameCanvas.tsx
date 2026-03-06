@@ -3,6 +3,8 @@ import { GameEngine } from '@/lib/game/Engine';
 
 interface GameCanvasProps {
   playerName: string;
+  playerColor?: string;
+  trailType?: "grass" | "flame";
   onGameOver: (score: number) => void;
   onScoreUpdate: (score: number) => void;
   onLeaderboardUpdate: (leaderboard: {name: string, score: number, color: string}[]) => void;
@@ -10,6 +12,8 @@ interface GameCanvasProps {
 
 export default function GameCanvas({ 
   playerName, 
+  playerColor,
+  trailType,
   onGameOver, 
   onScoreUpdate, 
   onLeaderboardUpdate 
@@ -30,6 +34,8 @@ export default function GameCanvas({
     const engine = new GameEngine(
       canvasRef.current, 
       playerName,
+      playerColor,
+      trailType,
       {
         onGameOver: (score) => callbacksRef.current.onGameOver(score),
         onScoreUpdate: (score) => callbacksRef.current.onScoreUpdate(score),
