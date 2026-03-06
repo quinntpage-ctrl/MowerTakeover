@@ -152,8 +152,10 @@ export class GameEngine {
             p.trailSet.delete(`${t.x},${t.y}`); // Clean up as we go
           });
           
-          // Use a fresh set for capture calculation to avoid reference issues
-          const captured = captureEnclosedAreas(new Set(p.territory));
+          // Use a fresh set for capture calculation
+          const territoryCopy = new Set(p.territory);
+          const captured = captureEnclosedAreas(territoryCopy);
+          
           captured.forEach(k => {
             p.territory.add(k);
             this.players.forEach(other => {

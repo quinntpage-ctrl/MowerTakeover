@@ -22,21 +22,18 @@ export function captureEnclosedAreas(
     if (y < minY) minY = y; if (y > maxY) maxY = y;
   });
 
-  const bMinX = Math.max(0, minX - 1);
-  const bMaxX = Math.min(gridWidth - 1, maxX + 1);
-  const bMinY = Math.max(0, minY - 1);
-  const bMaxY = Math.min(gridHeight - 1, maxY + 1);
-  
-  for (let x = bMinX; x <= bMaxX; x++) {
-    for (let y of [bMinY, bMaxY]) {
+  // Perform flood fill from all four edges of the WORLD, not just the bounding box.
+  // This ensures that anything not reachable from the world edges is captured.
+  for (let x = 0; x < gridWidth; x++) {
+    for (let y of [0, gridHeight - 1]) {
       const key = `${x},${y}`;
       if (!territorySet.has(key) && !visited.has(key)) {
         visited.add(key); toExplore.push([x, y]);
       }
     }
   }
-  for (let y = bMinY; y <= bMaxY; y++) {
-    for (let x of [bMinX, bMaxX]) {
+  for (let y = 0; y < gridHeight; y++) {
+    for (let x of [0, gridWidth - 1]) {
       const key = `${x},${y}`;
       if (!territorySet.has(key) && !visited.has(key)) {
         visited.add(key); toExplore.push([x, y]);
@@ -50,7 +47,7 @@ export function captureEnclosedAreas(
     const [cx, cy] = toExplore[head++];
     for (const [dx, dy] of dirs) {
       const nx = cx + dx, ny = cy + dy;
-      if (nx >= bMinX && nx <= bMaxX && ny >= bMinY && ny <= bMaxY) {
+      if (nx >= 0 && nx < gridWidth && ny >= 0 && ny < gridHeight) {
         const nKey = `${nx},${ny}`;
         if (!territorySet.has(nKey) && !visited.has(nKey)) {
           visited.add(nKey); toExplore.push([nx, ny]);
@@ -60,8 +57,9 @@ export function captureEnclosedAreas(
   }
   
   const newlyCaptured: string[] = [];
-  for (let x = bMinX; x <= bMaxX; x++) {
-    for (let y = bMinY; y <= bMaxY; y++) {
+  // Check the entire grid for cells that were not reached by the flood fill
+  for (let x = 0; x < gridWidth; x++) {
+    for (let y = 0; y < gridHeight; y++) {
       const key = `${x},${y}`;
       if (!territorySet.has(key) && !visited.has(key)) {
         newlyCaptured.push(key);
