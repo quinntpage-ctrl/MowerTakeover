@@ -50,7 +50,7 @@ export class GameEngine {
     this.players.set(this.localPlayerId, localPlayer);
     
     // Spawn bots
-    const botCount = 5;
+    const botCount = 0;
     for (let i = 0; i < botCount; i++) {
       const botId = `bot_${i}`;
       const bx = Math.floor(Math.random() * (WORLD_WIDTH - 400)) + 200;
