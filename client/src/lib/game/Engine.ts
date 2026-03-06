@@ -623,27 +623,27 @@ export class GameEngine {
     const grassEndY = Math.min(WORLD_HEIGHT, endY);
 
     if (grassEndX > grassStartX && grassEndY > grassStartY) {
-        // Draw base grass texture (subtle checkerboard)
-        for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x < grassEndX; x += CELL_SIZE) {
-            for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y < grassEndY; y += CELL_SIZE) {
-                const gridX = Math.floor(x / CELL_SIZE);
-                const gridY = Math.floor(y / CELL_SIZE);
-                const isAlternate = (gridX + gridY) % 2 === 0;
-                
-                // Professional, vibrant lawn green base
-                this.ctx.fillStyle = isAlternate ? '#66B93F' : '#6EC545';
-                this.ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-            }
-        }
+        const cellStartX = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE);
+        const cellStartY = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE);
+        
+        const visibleUnclaimed: {x: number, y: number, gridX: number, gridY: number}[] = [];
 
-        // Draw "high grass" texture
-        this.ctx.fillStyle = '#4B942D'; // Rich, dark green for tufts
-        for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x < grassEndX; x += CELL_SIZE) {
-            for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y < grassEndY; y += CELL_SIZE) {
+        // Draw base grass texture (subtle checkerboard)
+        // Optimization: fill entire background first, then only draw alternate squares
+        this.ctx.fillStyle = '#6EC545';
+        this.ctx.fillRect(cellStartX, cellStartY, grassEndX - cellStartX, grassEndY - cellStartY);
+
+        this.ctx.fillStyle = '#66B93F';
+        for (let x = cellStartX; x < grassEndX; x += CELL_SIZE) {
+            for (let y = cellStartY; y < grassEndY; y += CELL_SIZE) {
                 const gridX = Math.floor(x / CELL_SIZE);
                 const gridY = Math.floor(y / CELL_SIZE);
-                const key = `${gridX},${gridY}`;
                 
+                if ((gridX + gridY) % 2 === 0) {
+                    this.ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                }
+                
+                const key = `${gridX},${gridY}`;
                 let isClaimed = false;
                 for (const p of this.players.values()) {
                     if (!p.isDead && p.territory.has(key)) {
@@ -653,64 +653,53 @@ export class GameEngine {
                 }
 
                 if (!isClaimed) {
-                    // Pseudo-random but consistent tufts
-                    const seed1 = (x * 13 + y * 37) % 100 / 100;
-                    const seed2 = (x * 59 + y * 17) % 100 / 100;
-                    const seed3 = (x * 83 + y * 31) % 100 / 100;
-                    
-                    const drawTuft = (sx: number, sy: number) => {
-                        this.ctx.beginPath();
-                        // Left blade
-                        this.ctx.moveTo(sx, sy);
-                        this.ctx.quadraticCurveTo(sx - 3, sy - 4, sx - 4, sy - 8);
-                        this.ctx.quadraticCurveTo(sx - 1, sy - 5, sx + 1, sy);
-                        // Middle blade
-                        this.ctx.quadraticCurveTo(sx + 1, sy - 5, sx + 2, sy - 10);
-                        this.ctx.quadraticCurveTo(sx + 3, sy - 5, sx + 3, sy);
-                        // Right blade
-                        this.ctx.quadraticCurveTo(sx + 5, sy - 4, sx + 6, sy - 7);
-                        this.ctx.quadraticCurveTo(sx + 4, sy - 3, sx + 4, sy);
-                        this.ctx.fill();
-                    };
-
-                    // Draw 3 soft tufts per cell for a fuller, more professional look
-                    drawTuft(x + 6 + seed1 * 6, y + 10 + seed2 * 6);
-                    drawTuft(x + 20 + seed2 * 4, y + 16 + seed3 * 4);
-                    drawTuft(x + 10 + seed3 * 8, y + 26 + seed1 * 4);
+                    visibleUnclaimed.push({x, y, gridX, gridY});
                 }
             }
         }
 
-        // Draw Grid lines only on unclaimed territory
+        // Draw "high grass" tufts using a single batched path for extreme performance
+        this.ctx.fillStyle = '#4B942D'; // Rich, dark green for tufts
+        this.ctx.beginPath();
+        for (const cell of visibleUnclaimed) {
+            const {x, y, gridX, gridY} = cell;
+            const seed1 = (gridX * 13 + gridY * 37) % 100 / 100;
+            const seed2 = (gridX * 59 + gridY * 17) % 100 / 100;
+            const seed3 = (gridX * 83 + gridY * 31) % 100 / 100;
+            
+            const drawTuft = (sx: number, sy: number) => {
+                // Left blade
+                this.ctx.moveTo(sx, sy);
+                this.ctx.quadraticCurveTo(sx - 3, sy - 4, sx - 4, sy - 8);
+                this.ctx.quadraticCurveTo(sx - 1, sy - 5, sx + 1, sy);
+                // Middle blade
+                this.ctx.quadraticCurveTo(sx + 1, sy - 5, sx + 2, sy - 10);
+                this.ctx.quadraticCurveTo(sx + 3, sy - 5, sx + 3, sy);
+                // Right blade
+                this.ctx.quadraticCurveTo(sx + 5, sy - 4, sx + 6, sy - 7);
+                this.ctx.quadraticCurveTo(sx + 4, sy - 3, sx + 4, sy);
+            };
+
+            // Draw 3 soft tufts per cell for a fuller, more professional look
+            drawTuft(x + 6 + seed1 * 6, y + 10 + seed2 * 6);
+            drawTuft(x + 20 + seed2 * 4, y + 16 + seed3 * 4);
+            drawTuft(x + 10 + seed3 * 8, y + 26 + seed1 * 4);
+        }
+        this.ctx.fill();
+
+        // Draw Grid lines using a single batched path
         this.ctx.strokeStyle = '#85C465'; // Subtle grid lines that blend in nicely
         this.ctx.lineWidth = 1;
-        
-        // Vertical lines
-        for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x <= grassEndX; x += CELL_SIZE) {
-            for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y <= grassEndY; y += CELL_SIZE) {
-                const gridX = Math.floor(x / CELL_SIZE);
-                const gridY = Math.floor(y / CELL_SIZE);
-                const key = `${gridX},${gridY}`;
-                
-                let isClaimed = false;
-                for (const p of this.players.values()) {
-                    if (!p.isDead && p.territory.has(key)) {
-                        isClaimed = true;
-                        break;
-                    }
-                }
-
-                if (!isClaimed) {
-                    // Draw top and left borders for this cell to form the grid
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x, y);
-                    this.ctx.lineTo(x + CELL_SIZE, y);
-                    this.ctx.moveTo(x, y);
-                    this.ctx.lineTo(x, y + CELL_SIZE);
-                    this.ctx.stroke();
-                }
-            }
+        this.ctx.beginPath();
+        for (const cell of visibleUnclaimed) {
+            const {x, y} = cell;
+            // Draw top and left borders for this cell to form the grid
+            this.ctx.moveTo(x, y);
+            this.ctx.lineTo(x + CELL_SIZE, y);
+            this.ctx.moveTo(x, y);
+            this.ctx.lineTo(x, y + CELL_SIZE);
         }
+        this.ctx.stroke();
     }
 
     // Draw the deadly pink border
