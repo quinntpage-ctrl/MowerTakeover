@@ -602,7 +602,8 @@ export class GameEngine {
   }
 
   private draw() {
-    this.ctx.fillStyle = '#f3f4f6'; // very light grey outside
+    // Ultra-fast solid background (no checkerboard, no grid lines)
+    this.ctx.fillStyle = '#6EC545'; // Unmowed grass
     this.ctx.fillRect(0, 0, this.width, this.height);
     
     this.ctx.save();
@@ -617,98 +618,15 @@ export class GameEngine {
     const startY = Math.floor((this.camera.y - this.height/2) / CELL_SIZE) * CELL_SIZE;
     const endY = startY + this.height + CELL_SIZE * 2;
 
-    const grassStartX = Math.max(0, startX);
-    const grassStartY = Math.max(0, startY);
-    const grassEndX = Math.min(WORLD_WIDTH, endX);
-    const grassEndY = Math.min(WORLD_HEIGHT, endY);
+    const minVisX = Math.floor((startX - CELL_SIZE) / CELL_SIZE);
+    const maxVisX = Math.floor(endX / CELL_SIZE);
+    const minVisY = Math.floor((startY - CELL_SIZE) / CELL_SIZE);
+    const maxVisY = Math.floor(endY / CELL_SIZE);
 
-    if (grassEndX > grassStartX && grassEndY > grassStartY) {
-        const cellStartX = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE);
-        const cellStartY = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE);
-        
-        const visibleUnclaimed: {x: number, y: number, gridX: number, gridY: number}[] = [];
-
-        // Draw base grass texture (subtle checkerboard)
-        // Optimization: fill entire background first, then only draw alternate squares
-        this.ctx.fillStyle = '#6EC545';
-        this.ctx.fillRect(cellStartX, cellStartY, grassEndX - cellStartX, grassEndY - cellStartY);
-
-        this.ctx.fillStyle = '#66B93F';
-        for (let x = cellStartX; x < grassEndX; x += CELL_SIZE) {
-            for (let y = cellStartY; y < grassEndY; y += CELL_SIZE) {
-                const gridX = Math.floor(x / CELL_SIZE);
-                const gridY = Math.floor(y / CELL_SIZE);
-                
-                if ((gridX + gridY) % 2 === 0) {
-                    this.ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-                }
-                
-                const key = `${gridX},${gridY}`;
-                let isClaimed = false;
-                for (const p of this.players.values()) {
-                    if (!p.isDead && p.territory.has(key)) {
-                        isClaimed = true;
-                        break;
-                    }
-                }
-
-                if (!isClaimed) {
-                    visibleUnclaimed.push({x, y, gridX, gridY});
-                }
-            }
-        }
-
-        // Draw "high grass" tufts using a single batched path for extreme performance
-        this.ctx.fillStyle = '#4B942D'; // Rich, dark green for tufts
-        this.ctx.beginPath();
-        for (const cell of visibleUnclaimed) {
-            const {x, y, gridX, gridY} = cell;
-            const seed1 = (gridX * 13 + gridY * 37) % 100 / 100;
-            const seed2 = (gridX * 59 + gridY * 17) % 100 / 100;
-            const seed3 = (gridX * 83 + gridY * 31) % 100 / 100;
-            
-            const drawTuft = (sx: number, sy: number) => {
-                // Left blade
-                this.ctx.moveTo(sx, sy);
-                this.ctx.quadraticCurveTo(sx - 3, sy - 4, sx - 4, sy - 8);
-                this.ctx.quadraticCurveTo(sx - 1, sy - 5, sx + 1, sy);
-                // Middle blade
-                this.ctx.quadraticCurveTo(sx + 1, sy - 5, sx + 2, sy - 10);
-                this.ctx.quadraticCurveTo(sx + 3, sy - 5, sx + 3, sy);
-                // Right blade
-                this.ctx.quadraticCurveTo(sx + 5, sy - 4, sx + 6, sy - 7);
-                this.ctx.quadraticCurveTo(sx + 4, sy - 3, sx + 4, sy);
-            };
-
-            // Draw 3 soft tufts per cell for a fuller, more professional look
-            drawTuft(x + 6 + seed1 * 6, y + 10 + seed2 * 6);
-            drawTuft(x + 20 + seed2 * 4, y + 16 + seed3 * 4);
-            drawTuft(x + 10 + seed3 * 8, y + 26 + seed1 * 4);
-        }
-        this.ctx.fill();
-
-        // Draw Grid lines using a single batched path
-        this.ctx.strokeStyle = '#85C465'; // Subtle grid lines that blend in nicely
-        this.ctx.lineWidth = 1;
-        this.ctx.beginPath();
-        for (const cell of visibleUnclaimed) {
-            const {x, y} = cell;
-            // Draw top and left borders for this cell to form the grid
-            this.ctx.moveTo(x, y);
-            this.ctx.lineTo(x + CELL_SIZE, y);
-            this.ctx.moveTo(x, y);
-            this.ctx.lineTo(x, y + CELL_SIZE);
-        }
-        this.ctx.stroke();
-    }
-
-    // Draw the deadly pink border
+    // Draw the deadly pink border without shadow for max performance
     this.ctx.strokeStyle = '#EC098D';
-    this.ctx.lineWidth = 6;
-    this.ctx.shadowColor = '#EC098D';
-    this.ctx.shadowBlur = 15;
+    this.ctx.lineWidth = 4;
     this.ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    this.ctx.shadowBlur = 0; // reset
 
     // Warning Logo on Outside of Border
     const lp = this.players.get(this.localPlayerId);
@@ -744,23 +662,18 @@ export class GameEngine {
 
       this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
 
-        // 1. Territory (Mowed grass)
-        p.territory.forEach(key => {
-          const [cx, cy] = key.split(',').map(Number);
-          if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
-              cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
-            
-            // Draw mowed background - lighter to contrast with high grass
-            this.ctx.fillStyle = p.color + '66'; // slightly more solid to cover the base green
-            this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            
-            // Draw subtle stripe pattern for mowed look (like alternating cut directions)
-            this.ctx.fillStyle = p.color + '33';
-            if (cy % 2 === 0) {
-               this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        // 1. Territory (Mowed grass) - Batched draw over visible area only
+        this.ctx.fillStyle = p.color; // Solid color, no opacity for speed
+        this.ctx.beginPath();
+        for (let cx = minVisX; cx <= maxVisX; cx++) {
+            for (let cy = minVisY; cy <= maxVisY; cy++) {
+                if (p.territory.has(`${cx},${cy}`)) {
+                    this.ctx.rect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                }
             }
-          }
-        });
+        }
+        // Fill all territory squares at once!
+        this.ctx.fill();
 
         // 1.5 Claim Flashes (Exciting "mowing completed" visual)
         this.claimFlashes.forEach(flash => {
@@ -812,29 +725,25 @@ export class GameEngine {
           
           this.ctx.strokeStyle = p.color + 'AA';
           this.ctx.lineWidth = CELL_SIZE * 0.8; // slightly thinner than full cell
-          this.ctx.lineCap = 'round';
-          this.ctx.lineJoin = 'round';
+          this.ctx.lineCap = 'butt'; // Faster than round
+          this.ctx.lineJoin = 'miter'; // Faster than round
           this.ctx.stroke();
         }
 
-        // 3. Mower Sprite
+        // 3. Mower Sprite - Simplified
         this.ctx.save();
         this.ctx.translate(p.x, p.y);
         if (p.direction === 'RIGHT') this.ctx.rotate(Math.PI/2);
         else if (p.direction === 'DOWN') this.ctx.rotate(Math.PI);
         else if (p.direction === 'LEFT') this.ctx.rotate(-Math.PI/2);
         
-        // Mower Body (deck)
+        // Mower Body (deck) - Fast rect instead of roundRect
         this.ctx.fillStyle = p.color;
-        this.ctx.beginPath();
-        this.ctx.roundRect(-14, -12, 28, 24, 4);
-        this.ctx.fill();
+        this.ctx.fillRect(-14, -12, 28, 24);
         
         // Mower engine/center
         this.ctx.fillStyle = '#333';
-        this.ctx.beginPath();
-        this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
-        this.ctx.fill();
+        this.ctx.fillRect(-6, -6, 12, 12);
         
         // Handle/Bars
         this.ctx.strokeStyle = '#444';
@@ -857,25 +766,23 @@ export class GameEngine {
         
         // 4. Name
         this.ctx.fillStyle = '#000';
-        this.ctx.font = 'bold 12px Nunito';
+        this.ctx.font = 'bold 12px sans-serif'; // Removed custom font for speed
         this.ctx.textAlign = 'center';
         this.ctx.fillText(p.name, p.x, p.y - 25);
       
       this.ctx.globalAlpha = 1.0;
     });
 
-    // 5. Draw Particles (Grass Clippings)
-    this.particles.forEach(p => {
+    // 5. Draw Particles (Grass Clippings) - Batch fills where possible
+    for (let i = 0; i < this.particles.length; i++) {
+        const p = this.particles[i];
         if (p.x >= startX && p.x <= endX && p.y >= startY && p.y <= endY) {
-            this.ctx.save();
-            this.ctx.translate(p.x, p.y);
-            this.ctx.rotate(p.rotation);
             this.ctx.globalAlpha = p.life / p.maxLife;
             this.ctx.fillStyle = p.color;
-            this.ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
-            this.ctx.restore();
+            this.ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
         }
-    });
+    }
+    this.ctx.globalAlpha = 1.0;
 
     this.ctx.restore();
   }
