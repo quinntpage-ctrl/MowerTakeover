@@ -20,16 +20,20 @@ export class GameEngine {
   private players: Map<string, PlayerState> = new Map();
   private localPlayerId: string = 'player1';
   
-  private lastTime: number = 0;
   private animationFrameId: number = 0;
   private isRunning: boolean = false;
+  
+  // High-precision timing
+  private lastTimestamp: number = 0;
+  private accumulator: number = 0;
+  private readonly fixedDt: number = 1 / 60; // 60Hz logic
   
   private camera = { x: 0, y: 0 };
   private callbacks: GameCallbacks;
 
   constructor(canvas: HTMLCanvasElement, playerName: string, callbacks: GameCallbacks) {
     this.canvas = canvas;
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', { alpha: false }); // Optimize performance
     if (!context) throw new Error("Could not get 2d context");
     this.ctx = context;
     this.callbacks = callbacks;
@@ -39,33 +43,23 @@ export class GameEngine {
   }
 
   private initGame(playerName: string) {
-    // Generate map of who owns what cell for quick lookup
     this.players.clear();
     
-    // Spawn local player
+    // Spawn in the dead center of the world
     const startX = WORLD_WIDTH / 2;
     const startY = WORLD_HEIGHT / 2;
     
-    // Ensure camera is centered on spawn
+    const localPlayer = new PlayerState(this.localPlayerId, playerName, PLAYER_COLORS[0], startX, startY);
+    // Force set initial movement direction to ensure they don't sit still
+    localPlayer.direction = 'RIGHT';
+    localPlayer.nextDirection = 'RIGHT';
+    this.players.set(this.localPlayerId, localPlayer);
+    
+    // Initial camera position
     this.camera.x = startX;
     this.camera.y = startY;
 
-    // Set initial position for local player
-    const localPlayer = new PlayerState(this.localPlayerId, playerName, PLAYER_COLORS[0], startX, startY);
-    localPlayer.x = startX;
-    localPlayer.y = startY;
-    this.players.set(this.localPlayerId, localPlayer);
-    
-    // Spawn bots
-    const botCount = 0;
-    for (let i = 0; i < botCount; i++) {
-      const botId = `bot_${i}`;
-      const bx = Math.floor(Math.random() * (WORLD_WIDTH - 400)) + 200;
-      const by = Math.floor(Math.random() * (WORLD_HEIGHT - 400)) + 200;
-      const botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)] + Math.floor(Math.random() * 99);
-      const bot = new PlayerState(botId, botName, PLAYER_COLORS[(i + 1) % PLAYER_COLORS.length], bx, by, true);
-      this.players.set(botId, bot);
-    }
+    // No bots for now as requested
   }
 
   public resize(width: number, height: number) {
@@ -75,21 +69,31 @@ export class GameEngine {
 
   public start() {
     this.isRunning = true;
-    this.lastTime = performance.now();
-    this.loop(this.lastTime);
-    
-    // Bot logic interval
-    setInterval(() => {
-      if (!this.isRunning) return;
-      this.players.forEach(p => {
-        if (p.isBot && !p.isDead) this.updateBotLogic(p);
-      });
-    }, 500);
+    this.lastTimestamp = performance.now();
+    requestAnimationFrame(this.gameLoop);
   }
 
   public stop() {
     this.isRunning = false;
     cancelAnimationFrame(this.animationFrameId);
+  }
+
+  private gameLoop = (timestamp: number) => {
+    if (!this.isRunning) return;
+
+    let frameTime = (timestamp - this.lastTimestamp) / 1000;
+    if (frameTime > 0.25) frameTime = 0.25; // Panic cap
+    this.lastTimestamp = timestamp;
+
+    this.accumulator += frameTime;
+
+    while (this.accumulator >= this.fixedDt) {
+      this.update(this.fixedDt);
+      this.accumulator -= this.fixedDt;
+    }
+
+    this.draw();
+    this.animationFrameId = requestAnimationFrame(this.gameLoop);
   }
 
   public setPlayerDirection(dir: Direction) {
@@ -110,54 +114,15 @@ export class GameEngine {
   }
 
   private setupInputs() {
-    window.addEventListener('keydown', (e) => {
-      switch(e.key) {
-        case 'ArrowUp':
-        case 'w':
-        case 'W':
-          this.setPlayerDirection('UP'); break;
-        case 'ArrowDown':
-        case 's':
-        case 'S':
-          this.setPlayerDirection('DOWN'); break;
-        case 'ArrowLeft':
-        case 'a':
-        case 'A':
-          this.setPlayerDirection('LEFT'); break;
-        case 'ArrowRight':
-        case 'd':
-        case 'D':
-          this.setPlayerDirection('RIGHT'); break;
+    const handleKey = (e: KeyboardEvent) => {
+      switch(e.key.toLowerCase()) {
+        case 'arrowup': case 'w': this.setPlayerDirection('UP'); break;
+        case 'arrowdown': case 's': this.setPlayerDirection('DOWN'); break;
+        case 'arrowleft': case 'a': this.setPlayerDirection('LEFT'); break;
+        case 'arrowright': case 'd': this.setPlayerDirection('RIGHT'); break;
       }
-    });
-  }
-
-  private updateBotLogic(bot: PlayerState) {
-    // Very simple bot logic for mockup: random turns occasionally
-    if (Math.random() < 0.3) {
-      const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-      // Filter out 180 turn
-      const validDirs = dirs.filter(d => {
-        if (d === 'UP' && bot.direction === 'DOWN') return false;
-        if (d === 'DOWN' && bot.direction === 'UP') return false;
-        if (d === 'LEFT' && bot.direction === 'RIGHT') return false;
-        if (d === 'RIGHT' && bot.direction === 'LEFT') return false;
-        return true;
-      });
-      bot.nextDirection = validDirs[Math.floor(Math.random() * validDirs.length)];
-    }
-  }
-
-  private loop = (time: number) => {
-    if (!this.isRunning) return;
-    
-    const deltaTime = (time - this.lastTime) / 1000; // in seconds
-    this.lastTime = time;
-    
-    this.update(deltaTime);
-    this.draw();
-    
-    this.animationFrameId = requestAnimationFrame(this.loop);
+    };
+    window.addEventListener('keydown', handleKey);
   }
 
   private getCellAt(x: number, y: number): Point {
@@ -168,20 +133,19 @@ export class GameEngine {
   }
 
   private update(dt: number) {
-    // Cap deltaTime to prevent huge leaps if the tab was inactive
-    const cappedDt = Math.min(dt, 0.1);
+    const playersArr = Array.from(this.players.values());
     
-    const localPlayer = this.players.get(this.localPlayerId);
-    if (!localPlayer || localPlayer.isDead) return;
-
-    // Movement logic for all players
-    this.players.forEach((p, pid) => {
+    playersArr.forEach(p => {
       if (p.isDead) return;
 
+      const oldPos = { x: p.x, y: p.y };
       const oldCell = this.getCellAt(p.x, p.y);
+      
+      // Update direction
       p.direction = p.nextDirection;
 
-      const moveDist = PLAYER_SPEED * cappedDt;
+      // Calculate movement
+      const moveDist = PLAYER_SPEED * dt;
       let nextX = p.x;
       let nextY = p.y;
 
@@ -192,11 +156,9 @@ export class GameEngine {
         case 'RIGHT': nextX += moveDist; break;
       }
 
-      // Strict bounds checking
-      if (nextX < 1) nextX = 1;
-      if (nextX > WORLD_WIDTH - 1) nextX = WORLD_WIDTH - 1;
-      if (nextY < 1) nextY = 1;
-      if (nextY > WORLD_HEIGHT - 1) nextY = WORLD_HEIGHT - 1;
+      // Hard world boundaries
+      nextX = Math.max(0, Math.min(WORLD_WIDTH, nextX));
+      nextY = Math.max(0, Math.min(WORLD_HEIGHT, nextY));
 
       p.x = nextX;
       p.y = nextY;
@@ -204,47 +166,71 @@ export class GameEngine {
       const newCell = this.getCellAt(p.x, p.y);
       const cellKey = `${newCell.x},${newCell.y}`;
 
+      // Logic triggers when we cross into a new cell
       if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
+        
+        // 1. Check self-collision (hitting own trail)
+        // We only check if the trail point is not the one we JUST made
         if (p.trailSet.has(cellKey)) {
-          this.killPlayer(pid);
+          this.killPlayer(p.id);
           return;
         }
 
+        // 2. Are we outside our territory?
         if (!p.territory.has(cellKey)) {
+          // Record current cell in trail
           p.trail.push({...newCell});
           p.trailSet.add(cellKey);
           
+          // Collision check against others' trails
           this.players.forEach((otherP, otherPid) => {
-            if (otherPid !== pid && !otherP.isDead && otherP.trailSet.has(cellKey)) {
+            if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
               this.killPlayer(otherPid);
             }
           });
-        } else if (p.trail.length > 0) {
-          p.trail.forEach(t => {
-            const k = `${t.x},${t.y}`;
-            p.territory.add(k);
-            this.players.forEach((otherP, otherPid) => {
-              if (otherPid !== pid) otherP.territory.delete(k);
+        } else {
+          // We are inside our territory - complete capture if trail exists
+          if (p.trail.length > 0) {
+            p.trail.forEach(t => {
+              const k = `${t.x},${t.y}`;
+              p.territory.add(k);
+              
+              // Steal from any potential overlapping territories (mockup multiplayer)
+              this.players.forEach(other => {
+                if (other.id !== p.id) other.territory.delete(k);
+              });
             });
-          });
-          
-          const captured = captureEnclosedAreas(p.territory);
-          captured.forEach(k => {
-            p.territory.add(k);
-            this.players.forEach((otherP, otherPid) => {
-              if (otherPid !== pid) otherP.territory.delete(k);
+            
+            // Apply flood fill to capture enclosed area
+            const captured = captureEnclosedAreas(p.territory);
+            captured.forEach(k => {
+              p.territory.add(k);
+              this.players.forEach(other => {
+                if (other.id !== p.id) other.territory.delete(k);
+              });
             });
-          });
-          
-          p.trail = [];
-          p.trailSet.clear();
-          p.updateScore();
-          if (pid === this.localPlayerId) this.callbacks.onScoreUpdate(p.score);
+            
+            p.trail = [];
+            p.trailSet.clear();
+            p.updateScore();
+            
+            if (p.id === this.localPlayerId) {
+              this.callbacks.onScoreUpdate(p.score);
+            }
+          }
         }
       }
     });
 
-    if (Math.random() < 0.1) {
+    // Update camera to strictly follow local player
+    const lp = this.players.get(this.localPlayerId);
+    if (lp && !lp.isDead) {
+      this.camera.x = lp.x;
+      this.camera.y = lp.y;
+    }
+
+    // Leaderboard refresh logic
+    if (Math.random() < 0.05) {
       const sorted = Array.from(this.players.values())
         .filter(p => !p.isDead)
         .sort((a, b) => b.score - a.score)
@@ -252,18 +238,12 @@ export class GameEngine {
         .map(p => ({ name: p.name, score: Number(p.score.toFixed(1)), color: p.color }));
       this.callbacks.onLeaderboardUpdate(sorted);
     }
-    
-    // Always follow the local player
-    this.camera.x = localPlayer.x;
-    this.camera.y = localPlayer.y;
   }
 
   private killPlayer(pid: string) {
     const p = this.players.get(pid);
     if (!p) return;
     p.isDead = true;
-    
-    // Distribute territory (for now, just vanishes in mockup)
     p.territory.clear();
     p.trail = [];
     p.trailSet.clear();
@@ -278,63 +258,59 @@ export class GameEngine {
     this.ctx.fillRect(0, 0, this.width, this.height);
     
     this.ctx.save();
-    // Center camera on screen
-    this.ctx.translate(this.width / 2 - this.camera.x, this.height / 2 - this.camera.y);
+    // Centering camera
+    this.ctx.translate(
+      Math.floor(this.width / 2 - this.camera.x), 
+      Math.floor(this.height / 2 - this.camera.y)
+    );
 
-    // Draw grid bounds
+    // Draw grid background
     this.ctx.strokeStyle = COLORS.grid;
     this.ctx.lineWidth = 1;
-    this.ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    
-    // Draw grid lines
-    const startGridX = Math.max(0, Math.floor((this.camera.x - this.width / 2) / CELL_SIZE));
-    const endGridX = Math.min(GRID_SIZE, Math.ceil((this.camera.x + this.width / 2) / CELL_SIZE));
-    const startGridY = Math.max(0, Math.floor((this.camera.y - this.height / 2) / CELL_SIZE));
-    const endGridY = Math.min(GRID_SIZE, Math.ceil((this.camera.y + this.height / 2) / CELL_SIZE));
-    
     this.ctx.beginPath();
-    this.ctx.strokeStyle = COLORS.grid;
-    this.ctx.lineWidth = 1;
-    for (let x = startGridX; x <= endGridX; x++) {
-      this.ctx.moveTo(x * CELL_SIZE, 0);
-      this.ctx.lineTo(x * CELL_SIZE, WORLD_HEIGHT);
+    
+    // Optimize: only draw lines around the player
+    const startX = Math.max(0, Math.floor((this.camera.x - this.width / 2) / CELL_SIZE) * CELL_SIZE);
+    const endX = Math.min(WORLD_WIDTH, Math.ceil((this.camera.x + this.width / 2) / CELL_SIZE) * CELL_SIZE);
+    const startY = Math.max(0, Math.floor((this.camera.y - this.height / 2) / CELL_SIZE) * CELL_SIZE);
+    const endY = Math.min(WORLD_HEIGHT, Math.ceil((this.camera.y + this.height / 2) / CELL_SIZE) * CELL_SIZE);
+
+    for (let x = startX; x <= endX; x += CELL_SIZE) {
+      this.ctx.moveTo(x, startY);
+      this.ctx.lineTo(x, endY);
     }
-    for (let y = startGridY; y <= endGridY; y++) {
-      this.ctx.moveTo(0, y * CELL_SIZE);
-      this.ctx.lineTo(WORLD_WIDTH, y * CELL_SIZE);
+    for (let y = startY; y <= endY; y += CELL_SIZE) {
+      this.ctx.moveTo(startX, y);
+      this.ctx.lineTo(endX, y);
     }
     this.ctx.stroke();
 
-    // Render players (territory, trails, then mowers)
-    
-    // 1. Territories
+    // 1. Draw territories
     this.players.forEach(p => {
       if (p.isDead) return;
-      this.ctx.fillStyle = p.color + '66'; // 40% opacity
+      this.ctx.fillStyle = p.color + '66';
       p.territory.forEach(cellKey => {
         const [x, y] = cellKey.split(',').map(Number);
-        // Only draw if visible
-        if (x >= startGridX - 1 && x <= endGridX + 1 && y >= startGridY - 1 && y <= endGridY + 1) {
-           // Overlap slightly to prevent gaps
-           this.ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE + 1, CELL_SIZE + 1);
+        // Visibility culling
+        if (x * CELL_SIZE >= startX - CELL_SIZE && x * CELL_SIZE <= endX &&
+            y * CELL_SIZE >= startY - CELL_SIZE && y * CELL_SIZE <= endY) {
+          this.ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
       });
     });
 
-    // 2. Trails
+    // 2. Draw trails
     this.players.forEach(p => {
       if (p.isDead || p.trail.length === 0) return;
-      this.ctx.fillStyle = p.color + 'AA'; // 66% opacity
+      this.ctx.fillStyle = p.color + 'CC';
       p.trail.forEach(t => {
-        if (t.x >= startGridX - 1 && t.x <= endGridX + 1 && t.y >= startGridY - 1 && t.y <= endGridY + 1) {
-           this.ctx.fillRect(t.x * CELL_SIZE + 4, t.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
-        }
+        this.ctx.fillRect(t.x * CELL_SIZE + 4, t.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
       });
       
-      // Draw line from last trail block to current position
+      // Draw connection to current position
       const last = p.trail[p.trail.length - 1];
       this.ctx.beginPath();
-      this.ctx.strokeStyle = p.color + 'AA';
+      this.ctx.strokeStyle = p.color + 'CC';
       this.ctx.lineWidth = CELL_SIZE - 8;
       this.ctx.lineCap = 'square';
       this.ctx.moveTo(last.x * CELL_SIZE + CELL_SIZE/2, last.y * CELL_SIZE + CELL_SIZE/2);
@@ -342,14 +318,13 @@ export class GameEngine {
       this.ctx.stroke();
     });
 
-    // 3. Mowers (Players)
+    // 3. Draw players (mowers)
     this.players.forEach((p, pid) => {
       if (p.isDead) return;
       
       this.ctx.save();
       this.ctx.translate(p.x, p.y);
       
-      // Rotate based on direction
       switch(p.direction) {
         case 'UP': this.ctx.rotate(0); break;
         case 'RIGHT': this.ctx.rotate(Math.PI / 2); break;
@@ -357,46 +332,35 @@ export class GameEngine {
         case 'LEFT': this.ctx.rotate(-Math.PI / 2); break;
       }
       
-      // Draw Mower Body
       this.ctx.fillStyle = p.color;
-      // Main deck
-      this.ctx.fillRect(-12, -10, 24, 24);
+      this.ctx.fillRect(-12, -10, 24, 24); // Body
       
-      // Engine block
       this.ctx.fillStyle = '#333';
-      this.ctx.fillRect(-8, -4, 16, 12);
+      this.ctx.fillRect(-8, -4, 16, 12); // Engine
       
-      // Handles
       this.ctx.strokeStyle = '#222';
-      this.ctx.lineWidth = 3;
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(-10, 14, 20, 8); // Handles
+      
+      this.ctx.fillStyle = '#eee';
       this.ctx.beginPath();
-      this.ctx.moveTo(-10, 14);
-      this.ctx.lineTo(-10, 22);
-      this.ctx.lineTo(10, 22);
-      this.ctx.lineTo(10, 14);
-      this.ctx.stroke();
+      this.ctx.arc(0, -8, 12, Math.PI, 0);
+      this.ctx.fill(); // Blade shield
 
-      // Blade cover
-      this.ctx.fillStyle = '#ddd';
-      this.ctx.beginPath();
-      this.ctx.arc(0, -8, 14, Math.PI, 0);
-      this.ctx.fill();
-
-      // If local player, draw an arrow indicating direction
       if (pid === this.localPlayerId) {
-         this.ctx.fillStyle = '#fff';
-         this.ctx.beginPath();
-         this.ctx.moveTo(0, -18);
-         this.ctx.lineTo(-6, -10);
-         this.ctx.lineTo(6, -10);
-         this.ctx.fill();
+        this.ctx.fillStyle = '#fff';
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -16);
+        this.ctx.lineTo(-5, -8);
+        this.ctx.lineTo(5, -8);
+        this.ctx.fill(); // Direction arrow
       }
 
       this.ctx.restore();
       
-      // Draw Name tag
+      // Draw name
       this.ctx.fillStyle = '#000';
-      this.ctx.font = 'bold 14px Nunito, sans-serif';
+      this.ctx.font = 'bold 12px Nunito';
       this.ctx.textAlign = 'center';
       this.ctx.fillText(p.name, p.x, p.y - 25);
     });

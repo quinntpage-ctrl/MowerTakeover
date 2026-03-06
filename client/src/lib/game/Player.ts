@@ -10,20 +10,16 @@ export class PlayerState {
   name: string;
   color: string;
   
-  // Real pixel coordinates (center of the player)
+  // High-precision logical coordinates
   x: number;
   y: number;
   
-  // Current movement direction
   direction: Direction;
   nextDirection: Direction;
   
-  // The cells currently owned by the player
-  territory: Set<string>; // Stored as "x,y"
-  
-  // The cells currently forming the player's trail
+  territory: Set<string>; 
   trail: Point[];
-  trailSet: Set<string>; // For quick lookup
+  trailSet: Set<string>; 
   
   isDead: boolean;
   score: number;
@@ -33,8 +29,8 @@ export class PlayerState {
     this.id = id;
     this.name = name;
     this.color = color;
-    this.x = startX; 
-    this.y = startY; 
+    this.x = startX;
+    this.y = startY;
     this.direction = 'RIGHT';
     this.nextDirection = 'RIGHT';
     this.territory = new Set();
@@ -44,8 +40,8 @@ export class PlayerState {
     this.score = 0;
     this.isBot = isBot;
     
-    // Initialize start territory (5x5 grid around start position)
-    const gridX = Math.floor(startX / 30); // 30 is CELL_SIZE
+    // Initial 5x5 spawn zone
+    const gridX = Math.floor(startX / 30);
     const gridY = Math.floor(startY / 30);
     
     for (let dx = -2; dx <= 2; dx++) {
@@ -62,7 +58,6 @@ export class PlayerState {
   }
 
   updateScore() {
-    // Score is percentage of total map
     this.score = (this.territory.size / (GRID_SIZE * GRID_SIZE)) * 100;
   }
 }
