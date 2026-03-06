@@ -11,6 +11,7 @@ interface GameCanvasProps {
   onScoreUpdate: (score: number) => void;
   onLeaderboardUpdate: (leaderboard: {id: string, name: string, score: number, color: string}[]) => void;
   onFireballsUpdate?: (count: number) => void;
+  shootRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 export default function GameCanvas({
@@ -20,7 +21,8 @@ export default function GameCanvas({
   onGameOver,
   onScoreUpdate,
   onLeaderboardUpdate,
-  onFireballsUpdate
+  onFireballsUpdate,
+  shootRef
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -115,6 +117,10 @@ export default function GameCanvas({
         ws.send(JSON.stringify(msg));
       }
     };
+
+    if (shootRef) {
+      shootRef.current = sendShoot;
+    }
 
     const handleKey = (e: KeyboardEvent) => {
       switch (e.key.toLowerCase()) {

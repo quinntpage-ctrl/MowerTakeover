@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
@@ -13,6 +13,7 @@ export default function Home() {
   const [leaderboard, setLeaderboard] = useState<{id: string, name: string, score: number, color: string}[]>([]);
   const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
   const [trailType, setTrailType] = useState<"grass" | "flame" | "star" | "smile">("grass");
+  const shootRef = useRef<(() => void) | null>(null);
 
   const startGame = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +40,7 @@ export default function Home() {
           onScoreUpdate={setScore}
           onLeaderboardUpdate={setLeaderboard}
           onFireballsUpdate={setFireballs}
+          shootRef={shootRef}
         />
       )}
 
@@ -100,13 +102,18 @@ export default function Home() {
         </div>
       )}
 
-      {gameState === "playing" && (
-        <div className="absolute bottom-4 md:bottom-8 left-0 right-0 flex justify-center pointer-events-none md:hidden opacity-50">
-          <div className="glass-panel rounded-full px-4 py-2 flex items-center gap-2">
-            <Joystick className="w-5 h-5" />
-            <span className="font-bold text-sm">Swipe to steer</span>
-          </div>
-        </div>
+      {gameState === "playing" && fireballs > 0 && (
+        <button
+          className="absolute bottom-6 right-6 z-20 w-16 h-16 rounded-full bg-orange-500 shadow-lg active:scale-90 transition-transform flex items-center justify-center border-4 border-orange-300 md:hidden pointer-events-auto"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            shootRef.current?.();
+          }}
+          data-testid="button-shoot-mobile"
+        >
+          <Flame className="w-8 h-8 text-white" />
+        </button>
       )}
 
       {gameState === "menu" && (
