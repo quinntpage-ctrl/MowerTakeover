@@ -50,7 +50,7 @@ export default function Home() {
                   <span className="w-4 h-4 rounded-full border-2 border-white/50 shadow-sm" style={{ backgroundColor: player.color }}></span>
                   <span className="truncate max-w-[80px]">{player.name}</span>
                 </span>
-                <span className="text-foreground/80">{player.score}%</span>
+                <span className="text-foreground/80">{player.score.toFixed(1)}%</span>
               </li>
             ))}
           </ul>
