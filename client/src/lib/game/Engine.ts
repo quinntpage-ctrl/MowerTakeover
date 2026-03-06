@@ -159,13 +159,23 @@ export class GameEngine {
       if (p.isDead) {
          if (p.deathAlpha > 0) {
              p.deathAlpha -= dt * 1.5; // Fade out over ~0.66 seconds
-         } else if (p.deathAlpha <= 0) {
+         } else if (p.deathAlpha <= 0 && p.deathAlpha > -3) {
+             // Clear their remnants once fully faded
+             if (p.deathAlpha > -1) {
+                p.trail = [];
+                p.trailSet.clear();
+                p.territory.clear();
+                this.players.forEach(player => player.updateScore());
+             }
+
              if (p.isBot) {
                 this.respawnBot(p);
              } else if (p.id === this.localPlayerId && p.deathAlpha > -1) {
                 // Ensure we only call Game Over once by setting it to a low negative number
                 p.deathAlpha = -2;
                 this.callbacks.onGameOver(p.score, p.deathReason);
+             } else {
+                p.deathAlpha = -2;
              }
          }
          return;
@@ -429,9 +439,8 @@ export class GameEngine {
     p.isDead = true;
     p.deathAlpha = 1.0;
     p.deathReason = reason;
-    p.trail = [];
-    p.trailSet.clear();
-    p.territory.clear();
+    // We don't clear territory/trail here anymore so they can fade out visually.
+    // They will be cleared when deathAlpha reaches 0.
     p.updateScore();
     this.players.forEach(player => player.updateScore());
   }
