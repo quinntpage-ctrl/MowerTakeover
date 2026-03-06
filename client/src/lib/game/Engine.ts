@@ -79,21 +79,6 @@ export class GameEngine {
           if (!prevTerrSet.has(key)) {
             const [cx, cy] = key.split(',').map(Number);
             this.claimFlashes.push({ x: cx, y: cy, alpha: 1.0, color: p.color });
-
-            for (let i = 0; i < 2; i++) {
-              this.particles.push({
-                x: cx * CELL_SIZE + Math.random() * CELL_SIZE,
-                y: cy * CELL_SIZE + Math.random() * CELL_SIZE,
-                vx: (Math.random() - 0.5) * 100,
-                vy: (Math.random() - 0.5) * 100 - 50,
-                life: Math.random() * 0.5 + 0.5,
-                maxLife: 1.0,
-                color: '#4ade80',
-                size: Math.random() * 4 + 2,
-                rotation: Math.random() * Math.PI * 2,
-                vRot: (Math.random() - 0.5) * 10
-              });
-            }
           }
         }
 
