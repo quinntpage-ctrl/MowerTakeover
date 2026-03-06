@@ -161,24 +161,16 @@ export class GameEngine {
   }
 
   private update(dt: number) {
-    const moveDist = PLAYER_SPEED * dt;
-    const allTerritory = new Map<string, string>(); // 'x,y' -> playerId
-    
-    // Build global territory map for collisions
-    this.players.forEach((p, pid) => {
-      if (p.isDead) return;
-      p.territory.forEach(cell => allTerritory.set(cell, pid));
-    });
+    const p = this.players.get(this.localPlayerId);
+    if (!p || p.isDead) return;
 
+    // Movement logic for all players
     this.players.forEach((p, pid) => {
       if (p.isDead) return;
 
       const oldCell = this.getCellAt(p.x, p.y);
-      
-      // Update direction immediately
       p.direction = p.nextDirection;
 
-      // Move player
       const moveDist = PLAYER_SPEED * dt;
       switch (p.direction) {
         case 'UP': p.y -= moveDist; break;
@@ -187,7 +179,6 @@ export class GameEngine {
         case 'RIGHT': p.x += moveDist; break;
       }
 
-      // Bounds checking (allow moving across the whole world)
       if (p.x < 0) p.x = 0;
       if (p.x > WORLD_WIDTH) p.x = WORLD_WIDTH;
       if (p.y < 0) p.y = 0;
@@ -196,66 +187,46 @@ export class GameEngine {
       const newCell = this.getCellAt(p.x, p.y);
       const cellKey = `${newCell.x},${newCell.y}`;
 
-      // Check if moved to a new cell
       if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
-        
-        // 1. Check self-collision (hitting own trail)
         if (p.trailSet.has(cellKey)) {
           this.killPlayer(pid);
           return;
         }
 
-        // 2. Are we outside our territory?
         if (!p.territory.has(cellKey)) {
-          // Add to trail
           p.trail.push({...newCell});
           p.trailSet.add(cellKey);
           
-          // Check collision with other trails
           this.players.forEach((otherP, otherPid) => {
             if (otherPid !== pid && !otherP.isDead && otherP.trailSet.has(cellKey)) {
-              this.killPlayer(otherPid); // We hit their trail, they die
+              this.killPlayer(otherPid);
             }
           });
+        } else if (p.trail.length > 0) {
+          p.trail.forEach(t => {
+            const k = `${t.x},${t.y}`;
+            p.territory.add(k);
+            this.players.forEach((otherP, otherPid) => {
+              if (otherPid !== pid) otherP.territory.delete(k);
+            });
+          });
           
-        } else {
-          // We are inside our territory
-          if (p.trail.length > 0) {
-            // We just closed a loop!
-            // Add trail to territory
-            p.trail.forEach(t => {
-              const k = `${t.x},${t.y}`;
-              p.territory.add(k);
-              
-              // Steal from others
-              this.players.forEach((otherP, otherPid) => {
-                if (otherPid !== pid) otherP.territory.delete(k);
-              });
+          const captured = captureEnclosedAreas(p.territory);
+          captured.forEach(k => {
+            p.territory.add(k);
+            this.players.forEach((otherP, otherPid) => {
+              if (otherPid !== pid) otherP.territory.delete(k);
             });
-            
-            // Calculate enclosed area
-            const captured = captureEnclosedAreas(p.territory);
-            captured.forEach(k => {
-              p.territory.add(k);
-              // Steal from others
-              this.players.forEach((otherP, otherPid) => {
-                if (otherPid !== pid) otherP.territory.delete(k);
-              });
-            });
-            
-            p.trail = [];
-            p.trailSet.clear();
-            p.updateScore();
-            
-            if (pid === this.localPlayerId) {
-              this.callbacks.onScoreUpdate(p.score);
-            }
-          }
+          });
+          
+          p.trail = [];
+          p.trailSet.clear();
+          p.updateScore();
+          if (pid === this.localPlayerId) this.callbacks.onScoreUpdate(p.score);
         }
       }
     });
 
-    // Update leaderboard occasionally
     if (Math.random() < 0.1) {
       const sorted = Array.from(this.players.values())
         .filter(p => !p.isDead)
@@ -265,13 +236,8 @@ export class GameEngine {
       this.callbacks.onLeaderboardUpdate(sorted);
     }
     
-    // Update camera to follow local player
-    const lp = this.players.get(this.localPlayerId);
-    if (lp && !lp.isDead) {
-      // Direct camera follow for better precision in IO games
-      this.camera.x = lp.x;
-      this.camera.y = lp.y;
-    }
+    this.camera.x = p.x;
+    this.camera.y = p.y;
   }
 
   private killPlayer(pid: string) {
