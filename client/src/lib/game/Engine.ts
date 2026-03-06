@@ -602,8 +602,7 @@ export class GameEngine {
   }
 
   private draw() {
-    // Ultra-fast solid background (no checkerboard, no grid lines)
-    this.ctx.fillStyle = '#6EC545'; // Unmowed grass
+    this.ctx.fillStyle = '#f3f4f6'; // very light grey outside
     this.ctx.fillRect(0, 0, this.width, this.height);
     
     this.ctx.save();
@@ -618,15 +617,91 @@ export class GameEngine {
     const startY = Math.floor((this.camera.y - this.height/2) / CELL_SIZE) * CELL_SIZE;
     const endY = startY + this.height + CELL_SIZE * 2;
 
-    const minVisX = Math.floor((startX - CELL_SIZE) / CELL_SIZE);
-    const maxVisX = Math.floor(endX / CELL_SIZE);
-    const minVisY = Math.floor((startY - CELL_SIZE) / CELL_SIZE);
-    const maxVisY = Math.floor(endY / CELL_SIZE);
+    const grassStartX = Math.max(0, startX);
+    const grassStartY = Math.max(0, startY);
+    const grassEndX = Math.min(WORLD_WIDTH, endX);
+    const grassEndY = Math.min(WORLD_HEIGHT, endY);
 
-    // Draw the deadly pink border without shadow for max performance
+    if (grassEndX > grassStartX && grassEndY > grassStartY) {
+        // Draw Grid (unmowed grass texture base)
+        this.ctx.fillStyle = '#86efac'; // Light green for unmowed grass
+        this.ctx.fillRect(grassStartX, grassStartY, grassEndX - grassStartX, grassEndY - grassStartY);
+
+        // Draw "high grass" texture
+        this.ctx.fillStyle = '#22c55e'; // darker green for grass blades
+        for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x < grassEndX; x += CELL_SIZE) {
+            for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y < grassEndY; y += CELL_SIZE) {
+                const gridX = Math.floor(x / CELL_SIZE);
+                const gridY = Math.floor(y / CELL_SIZE);
+                const key = `${gridX},${gridY}`;
+                
+                let isClaimed = false;
+                for (const p of this.players.values()) {
+                    if (!p.isDead && p.territory.has(key)) {
+                        isClaimed = true;
+                        break;
+                    }
+                }
+
+                if (!isClaimed) {
+                    // Pseudo-random but consistent tufts
+                    const seed1 = (x * 13 + y * 37) % 100 / 100;
+                    const seed2 = (x * 59 + y * 17) % 100 / 100;
+                    
+                    const drawTuft = (sx: number, sy: number) => {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(sx, sy);
+                        this.ctx.lineTo(sx - 3, sy - 8);
+                        this.ctx.lineTo(sx + 1, sy - 10);
+                        this.ctx.lineTo(sx + 3, sy - 2);
+                        this.ctx.fill();
+                    };
+
+                    drawTuft(x + 5 + seed1 * 10, y + 15 + seed2 * 10);
+                    drawTuft(x + 18 + seed2 * 5, y + 25 + seed1 * 5);
+                }
+            }
+        }
+
+        // Draw Grid lines only on unclaimed territory
+        this.ctx.strokeStyle = '#4ade80'; // lighter green grid to not overpower texture
+        this.ctx.lineWidth = 1;
+        
+        // Vertical lines
+        for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x <= grassEndX; x += CELL_SIZE) {
+            for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y <= grassEndY; y += CELL_SIZE) {
+                const gridX = Math.floor(x / CELL_SIZE);
+                const gridY = Math.floor(y / CELL_SIZE);
+                const key = `${gridX},${gridY}`;
+                
+                let isClaimed = false;
+                for (const p of this.players.values()) {
+                    if (!p.isDead && p.territory.has(key)) {
+                        isClaimed = true;
+                        break;
+                    }
+                }
+
+                if (!isClaimed) {
+                    // Draw top and left borders for this cell to form the grid
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, y);
+                    this.ctx.lineTo(x + CELL_SIZE, y);
+                    this.ctx.moveTo(x, y);
+                    this.ctx.lineTo(x, y + CELL_SIZE);
+                    this.ctx.stroke();
+                }
+            }
+        }
+    }
+
+    // Draw the deadly pink border
     this.ctx.strokeStyle = '#EC098D';
-    this.ctx.lineWidth = 4;
+    this.ctx.lineWidth = 6;
+    this.ctx.shadowColor = '#EC098D';
+    this.ctx.shadowBlur = 15;
     this.ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    this.ctx.shadowBlur = 0; // reset
 
     // Warning Logo on Outside of Border
     const lp = this.players.get(this.localPlayerId);
@@ -662,18 +737,23 @@ export class GameEngine {
 
       this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
 
-        // 1. Territory (Mowed grass) - Batched draw over visible area only
-        this.ctx.fillStyle = p.color; // Solid color, no opacity for speed
-        this.ctx.beginPath();
-        for (let cx = minVisX; cx <= maxVisX; cx++) {
-            for (let cy = minVisY; cy <= maxVisY; cy++) {
-                if (p.territory.has(`${cx},${cy}`)) {
-                    this.ctx.rect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-                }
+        // 1. Territory (Mowed grass)
+        p.territory.forEach(key => {
+          const [cx, cy] = key.split(',').map(Number);
+          if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
+              cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
+            
+            // Draw mowed background - lighter to contrast with high grass
+            this.ctx.fillStyle = p.color + '66'; // slightly more solid to cover the base green
+            this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            
+            // Draw subtle stripe pattern for mowed look (like alternating cut directions)
+            this.ctx.fillStyle = p.color + '33';
+            if (cy % 2 === 0) {
+               this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
             }
-        }
-        // Fill all territory squares at once!
-        this.ctx.fill();
+          }
+        });
 
         // 1.5 Claim Flashes (Exciting "mowing completed" visual)
         this.claimFlashes.forEach(flash => {
@@ -725,25 +805,29 @@ export class GameEngine {
           
           this.ctx.strokeStyle = p.color + 'AA';
           this.ctx.lineWidth = CELL_SIZE * 0.8; // slightly thinner than full cell
-          this.ctx.lineCap = 'butt'; // Faster than round
-          this.ctx.lineJoin = 'miter'; // Faster than round
+          this.ctx.lineCap = 'round';
+          this.ctx.lineJoin = 'round';
           this.ctx.stroke();
         }
 
-        // 3. Mower Sprite - Simplified
+        // 3. Mower Sprite
         this.ctx.save();
         this.ctx.translate(p.x, p.y);
         if (p.direction === 'RIGHT') this.ctx.rotate(Math.PI/2);
         else if (p.direction === 'DOWN') this.ctx.rotate(Math.PI);
         else if (p.direction === 'LEFT') this.ctx.rotate(-Math.PI/2);
         
-        // Mower Body (deck) - Fast rect instead of roundRect
+        // Mower Body (deck)
         this.ctx.fillStyle = p.color;
-        this.ctx.fillRect(-14, -12, 28, 24);
+        this.ctx.beginPath();
+        this.ctx.roundRect(-14, -12, 28, 24, 4);
+        this.ctx.fill();
         
         // Mower engine/center
         this.ctx.fillStyle = '#333';
-        this.ctx.fillRect(-6, -6, 12, 12);
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
+        this.ctx.fill();
         
         // Handle/Bars
         this.ctx.strokeStyle = '#444';
@@ -766,23 +850,25 @@ export class GameEngine {
         
         // 4. Name
         this.ctx.fillStyle = '#000';
-        this.ctx.font = 'bold 12px sans-serif'; // Removed custom font for speed
+        this.ctx.font = 'bold 12px Nunito';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(p.name, p.x, p.y - 25);
       
       this.ctx.globalAlpha = 1.0;
     });
 
-    // 5. Draw Particles (Grass Clippings) - Batch fills where possible
-    for (let i = 0; i < this.particles.length; i++) {
-        const p = this.particles[i];
+    // 5. Draw Particles (Grass Clippings)
+    this.particles.forEach(p => {
         if (p.x >= startX && p.x <= endX && p.y >= startY && p.y <= endY) {
+            this.ctx.save();
+            this.ctx.translate(p.x, p.y);
+            this.ctx.rotate(p.rotation);
             this.ctx.globalAlpha = p.life / p.maxLife;
             this.ctx.fillStyle = p.color;
-            this.ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+            this.ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+            this.ctx.restore();
         }
-    }
-    this.ctx.globalAlpha = 1.0;
+    });
 
     this.ctx.restore();
   }
