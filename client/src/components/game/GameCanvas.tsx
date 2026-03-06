@@ -52,9 +52,24 @@ export default function GameCanvas({
     // Handle resize
     const handleResize = () => {
       if (canvasRef.current) {
-        canvasRef.current.width = window.innerWidth;
-        canvasRef.current.height = window.innerHeight;
-        engine.resize(window.innerWidth, window.innerHeight);
+        // Handle high DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvasRef.current.parentElement?.getBoundingClientRect() || { width: window.innerWidth, height: window.innerHeight };
+        
+        canvasRef.current.width = rect.width * dpr;
+        canvasRef.current.height = rect.height * dpr;
+        
+        // CSS display size
+        canvasRef.current.style.width = `${rect.width}px`;
+        canvasRef.current.style.height = `${rect.height}px`;
+        
+        // Normalize coordinate system to use css pixels
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.scale(dpr, dpr);
+        }
+        
+        engine.resize(rect.width, rect.height);
       }
     };
     
