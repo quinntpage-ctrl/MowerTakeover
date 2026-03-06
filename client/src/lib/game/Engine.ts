@@ -518,7 +518,7 @@ export class GameEngine {
   }
 
   private draw() {
-    this.ctx.fillStyle = '#333333'; // completely grey outside
+    this.ctx.fillStyle = '#f3f4f6'; // very light grey outside
     this.ctx.fillRect(0, 0, this.width, this.height);
     
     this.ctx.save();
@@ -542,18 +542,6 @@ export class GameEngine {
         // Draw Grid (unmowed grass texture base)
         this.ctx.fillStyle = '#86efac'; // Light green for unmowed grass
         this.ctx.fillRect(grassStartX, grassStartY, grassEndX - grassStartX, grassEndY - grassStartY);
-        
-        // Add some "grass" texture
-        this.ctx.fillStyle = '#4ade80';
-        for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x <= grassEndX; x += CELL_SIZE) {
-            for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y <= grassEndY; y += CELL_SIZE) {
-                if ((x + y) % 3 === 0) {
-                     this.ctx.fillRect(x + 5, y + 5, 2, 6);
-                     this.ctx.fillRect(x + 15, y + 12, 2, 5);
-                     this.ctx.fillRect(x + 22, y + 4, 2, 7);
-                }
-            }
-        }
 
         this.ctx.strokeStyle = '#22c55e'; // darker green grid
         this.ctx.lineWidth = 1;
@@ -589,7 +577,7 @@ export class GameEngine {
             
             this.ctx.drawImage(this.logoImage, -lw/2, -lh/2 - 20, lw, lh);
             
-            this.ctx.fillStyle = '#ffffff';
+            this.ctx.fillStyle = '#333333'; // dark text for readability on light grey
             this.ctx.font = 'bold 24px "Neue Haas Grotesk", "Inter", sans-serif';
             this.ctx.textAlign = 'center';
             this.ctx.fillText("Go to mower.com to see what we are all about!", 0, lh/2 + 20);
