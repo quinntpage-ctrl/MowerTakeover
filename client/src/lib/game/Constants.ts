@@ -11,8 +11,8 @@ export const BOT_COUNT = 5; // Reduced from default 7
 export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
 export const COLORS = {
-  bg: '#e5f6e5',
-  grid: '#bbf7d0',
+  bg: '#fdf2f8', // Very light pink background
+  grid: '#fce7f3', // Soft pink grid lines
   trailAlpha: 0.5,
 };
 
@@ -23,7 +23,7 @@ export const BOT_NAMES = [
 ];
 
 export const PLAYER_COLORS = [
-  '#ef4444', // Red
+  '#EC098D', // Mower.com Pink (Primary)
   '#3b82f6', // Blue
   '#eab308', // Yellow
   '#a855f7', // Purple

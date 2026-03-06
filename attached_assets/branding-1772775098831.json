@@ -1,0 +1,131 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Neue Haas Grotesk Display",
+      "role": "body"
+    },
+    {
+      "family": "Blacker2",
+      "role": "heading"
+    }
+  ],
+  "colors": {
+    "primary": "#EC098D",
+    "accent": "#EC008C",
+    "background": "#EDEDED",
+    "textPrimary": "#000000",
+    "link": "#EC008C"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Neue Haas Grotesk Display",
+      "heading": "Blacker2"
+    },
+    "fontStacks": {
+      "heading": [
+        "Blacker2"
+      ],
+      "body": [
+        "neue-haas-grotesk-display",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "neue-haas-grotesk-display",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "72px",
+      "h2": "22px",
+      "body": "18px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "2px"
+  },
+  "components": {
+    "buttonPrimary": {
+      "background": "#EC008C",
+      "textColor": "#FFFFFF",
+      "borderColor": "#EC008C",
+      "borderRadius": "2px",
+      "borderRadiusCorners": {
+        "topLeft": "2px",
+        "topRight": "2px",
+        "bottomRight": "2px",
+        "bottomLeft": "2px"
+      },
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#262626",
+      "textColor": "#000000",
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "File saved at: attached_assets/logo.svg",
+    "favicon": "https://www.mower.com/wp-content/uploads/2022/03/cropped-favicon_mower_2-32x32.png",
+    "ogImage": "https://www.mower.com/wp-content/uploads/2020/08/mower_home_01.jpg",
+    "logoHref": "https://www.mower.com/",
+    "logoAlt": "b85fab00-fe4d-4cf4-9b50-bc3d96ef740f"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the brand inferred from the URL and page title.",
+    "confidence": 0.9,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 1,
+      "text": "Accept All",
+      "reasoning": "Button #1 uses the vibrant brand color #EC008C, which is consistent with the site's primary color scheme and stands out as the main call-to-action."
+    },
+    "secondary": {
+      "index": 0,
+      "text": "Customize Reject All Accept All",
+      "reasoning": "Button #0 is from a different color group (#262626) and serves as a secondary option with less prominence than the primary button."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "businesses seeking marketing services"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the brand inferred from the URL and page title.",
+        "confidence": 0.9
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}

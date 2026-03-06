@@ -4,30 +4,30 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: oklch(0.95 0.05 145);
-  --color-foreground: oklch(0.2 0.05 145);
-  --color-card: oklch(1 0 0);
-  --color-card-foreground: oklch(0.2 0.05 145);
-  --color-popover: oklch(1 0 0);
-  --color-popover-foreground: oklch(0.2 0.05 145);
-  --color-primary: oklch(0.6 0.2 145);
-  --color-primary-foreground: oklch(1 0 0);
-  --color-secondary: oklch(0.9 0.15 90);
-  --color-secondary-foreground: oklch(0.3 0.1 90);
-  --color-muted: oklch(0.9 0.05 145);
-  --color-muted-foreground: oklch(0.4 0.05 145);
-  --color-accent: oklch(0.8 0.2 90);
-  --color-accent-foreground: oklch(0.3 0.1 90);
-  --color-destructive: oklch(0.6 0.2 25);
-  --color-destructive-foreground: oklch(1 0 0);
-  --color-border: oklch(0.9 0.05 145);
-  --color-input: oklch(0.9 0.05 145);
-  --color-ring: oklch(0.6 0.2 145);
+  --color-background: #EDEDED;
+  --color-foreground: #000000;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #000000;
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #000000;
+  --color-primary: #EC098D;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #262626;
+  --color-secondary-foreground: #FFFFFF;
+  --color-muted: #F5F5F5;
+  --color-muted-foreground: #737373;
+  --color-accent: #EC098D;
+  --color-accent-foreground: #FFFFFF;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #FFFFFF;
+  --color-border: #E5E5E5;
+  --color-input: #E5E5E5;
+  --color-ring: #EC098D;
   
-  --font-sans: 'Nunito', sans-serif;
-  --font-display: 'Fredoka One', cursive;
+  --font-sans: 'Neue Haas Grotesk Display', 'Inter', sans-serif;
+  --font-display: 'Blacker2', 'Fredoka One', cursive;
   
-  --radius: 1rem;
+  --radius: 2px;
 }
 
 @layer base {
@@ -36,18 +36,17 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground overflow-hidden touch-none select-none;
-    /* touch-none and select-none to prevent zooming/scrolling on mobile */
   }
 }
 
-/* Custom pattern for the "grass" background in the UI */
+/* Updated pattern for the Mower background */
 .bg-grass-pattern {
-  background-color: #dcfce7;
+  background-color: #F5F5F5;
   background-image: 
-    linear-gradient(45deg, #bbf7d0 25%, transparent 25%, transparent 75%, #bbf7d0 75%, #bbf7d0), 
-    linear-gradient(45deg, #bbf7d0 25%, transparent 25%, transparent 75%, #bbf7d0 75%, #bbf7d0);
-  background-size: 40px 40px;
-  background-position: 0 0, 20px 20px;
+    linear-gradient(45deg, #EDEDED 25%, transparent 25%, transparent 75%, #EDEDED 75%, #EDEDED), 
+    linear-gradient(45deg, #EDEDED 25%, transparent 25%, transparent 75%, #EDEDED 75%, #EDEDED);
+  background-size: 60px 60px;
+  background-position: 0 0, 30px 30px;
 }
 
 /* Animations for UI */

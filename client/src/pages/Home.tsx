@@ -56,12 +56,14 @@ export default function Home() {
         </div>
       )}
 
-      {/* UI OVERLAY - SCORE / MINIMAP */}
+      {/* UI OVERLAY - SCORE */}
       {gameState === "playing" && (
-        <div className="absolute top-4 left-4 glass-panel rounded-full px-6 py-2 shadow-lg pointer-events-none">
+        <div className="absolute top-4 left-4 glass-panel rounded-full px-6 py-2 shadow-lg pointer-events-none flex items-center gap-4">
+          <img src="/logo.svg" alt="Logo" className="h-6 opacity-80" />
+          <div className="h-4 w-px bg-primary/20"></div>
           <div className="text-2xl font-display text-primary flex items-center gap-2">
             <span>{score.toFixed(1)}%</span>
-            <span className="text-sm font-sans text-muted-foreground uppercase tracking-widest">Owned</span>
+            <span className="text-sm font-sans text-muted-foreground uppercase tracking-widest">Captured</span>
           </div>
         </div>
       )}
@@ -79,9 +81,9 @@ export default function Home() {
       {/* MAIN MENU */}
       {gameState === "menu" && (
         <div className="z-10 glass-panel p-8 md:p-12 rounded-3xl shadow-2xl max-w-md w-full mx-4 border-2 border-white/50 animate-in fade-in zoom-in duration-500">
-          <div className="text-center mb-8 animate-float">
-            <h1 className="text-6xl md:text-7xl font-display text-primary drop-shadow-md tracking-tight mb-2">Mower.io</h1>
-            <p className="text-muted-foreground font-bold">Capture the yard. Don't cross your own trail!</p>
+          <div className="text-center mb-8 animate-float flex flex-col items-center">
+            <img src="/logo.svg" alt="Mower Logo" className="h-20 mb-4 drop-shadow-lg" />
+            <p className="text-muted-foreground font-bold italic">Capture the landscape. Claim your territory.</p>
           </div>
 
           <form onSubmit={startGame} className="space-y-4">
