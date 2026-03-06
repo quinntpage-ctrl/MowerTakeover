@@ -4,25 +4,25 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: #e5f6e5;
-  --color-foreground: #064e3b;
-  --color-card: #ffffff;
-  --color-card-foreground: #064e3b;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #064e3b;
-  --color-primary: #16a34a;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #fef08a;
-  --color-secondary-foreground: #854d0e;
-  --color-muted: #dcfce7;
-  --color-muted-foreground: #166534;
-  --color-accent: #facc15;
-  --color-accent-foreground: #713f12;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-border: #bbf7d0;
-  --color-input: #bbf7d0;
-  --color-ring: #22c55e;
+  --color-background: oklch(0.95 0.05 145);
+  --color-foreground: oklch(0.2 0.05 145);
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.2 0.05 145);
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.2 0.05 145);
+  --color-primary: oklch(0.6 0.2 145);
+  --color-primary-foreground: oklch(1 0 0);
+  --color-secondary: oklch(0.9 0.15 90);
+  --color-secondary-foreground: oklch(0.3 0.1 90);
+  --color-muted: oklch(0.9 0.05 145);
+  --color-muted-foreground: oklch(0.4 0.05 145);
+  --color-accent: oklch(0.8 0.2 90);
+  --color-accent-foreground: oklch(0.3 0.1 90);
+  --color-destructive: oklch(0.6 0.2 25);
+  --color-destructive-foreground: oklch(1 0 0);
+  --color-border: oklch(0.9 0.05 145);
+  --color-input: oklch(0.9 0.05 145);
+  --color-ring: oklch(0.6 0.2 145);
   
   --font-sans: 'Nunito', sans-serif;
   --font-display: 'Fredoka One', cursive;
