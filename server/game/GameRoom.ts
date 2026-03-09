@@ -230,7 +230,7 @@ export class GameRoom {
             p.deathAlpha = -2;
             const conn = this.connections.get(p.id);
             if (conn) {
-              const msg: ServerMessage = { type: 'gameOver', score: p.score, reason: p.deathReason };
+              const msg: ServerMessage = { type: 'gameOver', score: p.finalScore, reason: p.deathReason };
               this.sendToPlayer(p.id, msg);
             }
           } else {
@@ -619,10 +619,11 @@ export class GameRoom {
     const p = this.players.get(pid);
     if (!p || p.isDead) return;
 
+    p.updateScore();
+    p.finalScore = p.score;
     p.isDead = true;
     p.deathAlpha = 1.0;
     p.deathReason = reason;
-    p.updateScore();
     this.updateAllScores();
 
     this.broadcast({ type: 'kill', playerId: pid, reason });
