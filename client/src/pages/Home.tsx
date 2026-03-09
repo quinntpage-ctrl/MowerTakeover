@@ -439,18 +439,12 @@ export default function Home() {
               data-testid="button-customize"
             >
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="h-8 w-8 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: selectedColor }} />
-                  <div className="text-left">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Customize Mower</div>
-                    <div className="mt-0.5 flex items-center gap-2 text-sm font-bold text-foreground">
-                      <TrailChoiceIcon trailType={trailType} className="w-4 h-4 text-primary" />
-                      <span>{getTrailLabel(trailType)}</span>
-                    </div>
-                  </div>
+                <div className="text-left">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Customize Mower</div>
+                  <div className="mt-0.5 text-sm font-bold text-foreground">Preview your selected mower</div>
                 </div>
-                <div className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-                  Open
+                <div className="w-28 md:w-32 overflow-hidden rounded-xl border border-white/70 bg-white/35 shadow-inner shrink-0">
+                  <MowerCustomizerPreview color={selectedColor} trailType={trailType} />
                 </div>
               </div>
             </button>
