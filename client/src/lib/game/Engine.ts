@@ -32,6 +32,22 @@ interface ClaimFlash {
   color: string;
 }
 
+interface PlayerSnapshot {
+  x: number;
+  y: number;
+  direction: Direction;
+  isDead: boolean;
+  receivedAt: number;
+}
+
+interface FireballSnapshot {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  receivedAt: number;
+}
+
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -57,8 +73,9 @@ export class GameEngine {
   private logoImage: HTMLImageElement;
 
   private displayPositions: Map<string, { x: number; y: number }> = new Map();
+  private playerSnapshots: Map<string, PlayerSnapshot> = new Map();
   private fireballDisplayPositions: Map<string, { x: number; y: number }> = new Map();
-  private fireballSnapshots: Map<string, { x: number; y: number; vx: number; vy: number; receivedAt: number }> = new Map();
+  private fireballSnapshots: Map<string, FireballSnapshot> = new Map();
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
@@ -92,6 +109,13 @@ export class GameEngine {
       }
 
       this.prevTerritories.set(p.id, newTerrSet);
+      this.playerSnapshots.set(p.id, {
+        x: p.x,
+        y: p.y,
+        direction: p.direction,
+        isDead: p.isDead,
+        receivedAt: snapshotTime,
+      });
 
       if (!this.displayPositions.has(p.id)) {
         this.displayPositions.set(p.id, { x: p.x, y: p.y });
@@ -107,6 +131,11 @@ export class GameEngine {
     this.displayPositions.forEach((_position, id) => {
       if (!currentIds.has(id)) {
         this.displayPositions.delete(id);
+      }
+    });
+    this.playerSnapshots.forEach((_snapshot, id) => {
+      if (!currentIds.has(id)) {
+        this.playerSnapshots.delete(id);
       }
     });
 
@@ -239,8 +268,9 @@ export class GameEngine {
 
     for (const p of this.players) {
       const dp = this.displayPositions.get(p.id);
-      if (dp) {
-        this.updateDisplayPosition(dp, p, dt);
+      const snapshot = this.playerSnapshots.get(p.id);
+      if (dp && snapshot) {
+        this.updateDisplayPosition(dp, snapshot, p, dt);
       }
     }
 
@@ -267,65 +297,46 @@ export class GameEngine {
     this.animationFrameId = requestAnimationFrame(this.renderLoop);
   }
 
-  private updateDisplayPosition(dp: { x: number; y: number }, p: PlayerData, dt: number) {
-    const leadDistance = PLAYER_SPEED / TICK_RATE;
-    let targetX = p.x;
-    let targetY = p.y;
-
-    if (!p.isDead) {
-      if (p.direction === 'UP') targetY -= leadDistance;
-      else if (p.direction === 'DOWN') targetY += leadDistance;
-      else if (p.direction === 'LEFT') targetX -= leadDistance;
-      else targetX += leadDistance;
+  private updateDisplayPosition(dp: { x: number; y: number }, snapshot: PlayerSnapshot, p: PlayerData, dt: number) {
+    let vx = 0;
+    let vy = 0;
+    if (!snapshot.isDead) {
+      if (snapshot.direction === 'UP') vy = -PLAYER_SPEED;
+      else if (snapshot.direction === 'DOWN') vy = PLAYER_SPEED;
+      else if (snapshot.direction === 'LEFT') vx = -PLAYER_SPEED;
+      else vx = PLAYER_SPEED;
     }
 
-    targetX = Math.max(0, Math.min(WORLD_WIDTH - 0.001, targetX));
-    targetY = Math.max(0, Math.min(WORLD_HEIGHT - 0.001, targetY));
+    const elapsedSinceSnapshot = Math.min(Math.max(0, (this.lastTimestamp - snapshot.receivedAt) / 1000), 2 / TICK_RATE);
+    const targetX = Math.max(0, Math.min(WORLD_WIDTH - 0.001, snapshot.x + vx * elapsedSinceSnapshot));
+    const targetY = Math.max(0, Math.min(WORLD_HEIGHT - 0.001, snapshot.y + vy * elapsedSinceSnapshot));
 
-    const dx = p.x - dp.x;
-    const dy = p.y - dp.y;
+    const authDx = p.x - dp.x;
+    const authDy = p.y - dp.y;
 
     // Snap on large corrections like respawns or reconnects.
-    if (Math.hypot(dx, dy) > CELL_SIZE * 1.5) {
+    if (Math.hypot(authDx, authDy) > CELL_SIZE * 1.5) {
       dp.x = p.x;
       dp.y = p.y;
       return;
     }
 
-    const correction = 1 - Math.pow(0.001, dt);
-    if (p.isDead) {
-      dp.x += dx * correction;
-      dp.y += dy * correction;
+    if (snapshot.isDead) {
+      const correction = 1 - Math.pow(0.001, dt);
+      dp.x += authDx * correction;
+      dp.y += authDy * correction;
       return;
     }
 
-    const step = PLAYER_SPEED * dt;
-    const axisLock = 1 - Math.pow(0.0000000001, dt);
+    dp.x += vx * dt;
+    dp.y += vy * dt;
 
-    if (p.direction === 'UP') {
-      dp.y -= step;
-      dp.y += (targetY - dp.y) * correction;
-      dp.x += dx * axisLock;
-      return;
-    }
+    const dx = targetX - dp.x;
+    const dy = targetY - dp.y;
+    const correction = 1 - Math.pow(0.0001, dt);
 
-    if (p.direction === 'DOWN') {
-      dp.y += step;
-      dp.y += (targetY - dp.y) * correction;
-      dp.x += dx * axisLock;
-      return;
-    }
-
-    if (p.direction === 'LEFT') {
-      dp.x -= step;
-      dp.x += (targetX - dp.x) * correction;
-      dp.y += dy * axisLock;
-      return;
-    }
-
-    dp.x += step;
-    dp.x += (targetX - dp.x) * correction;
-    dp.y += dy * axisLock;
+    dp.x += dx * correction;
+    dp.y += dy * correction;
   }
 
   private getDisplayPos(p: PlayerData): { x: number; y: number; direction: Direction } {

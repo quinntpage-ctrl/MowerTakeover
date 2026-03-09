@@ -76,7 +76,7 @@ export default function Home() {
   };
 
   return (
-    <div className="w-full h-full overflow-hidden bg-grass-pattern relative flex items-center justify-center font-sans" style={{ height: '100dvh' }}>
+    <div className="w-full h-full overflow-hidden bg-grass-pattern relative flex items-stretch justify-stretch md:items-center md:justify-center font-sans" style={{ height: '100dvh' }}>
       
       {gameState === "playing" && (
         <GameCanvas 
@@ -197,7 +197,7 @@ export default function Home() {
       )}
 
       {gameState === "menu" && (
-        <div className="z-10 glass-panel p-3 md:p-8 rounded-2xl md:rounded-3xl shadow-2xl max-w-xs md:max-w-md w-full mx-3 border-2 border-white/50 animate-in fade-in zoom-in duration-500 max-h-[92vh] overflow-y-auto custom-scrollbar">
+        <div className="z-10 glass-panel w-full h-full overflow-y-auto custom-scrollbar p-3 rounded-none border-0 shadow-none animate-in fade-in zoom-in duration-500 md:p-8 md:rounded-3xl md:shadow-2xl md:max-w-md md:w-full md:h-auto md:mx-3 md:border-2 md:border-white/50 md:max-h-[92vh]">
           <div className="text-center mb-2 md:mb-6 animate-float flex flex-col items-center">
             <img src="/logo.svg" alt="Mower Logo" className="h-8 md:h-16 mb-1 md:mb-3 drop-shadow-lg" />
             <p className="text-muted-foreground font-bold italic text-xs md:text-base">Capture the landscape. Claim your territory.</p>
@@ -314,7 +314,7 @@ export default function Home() {
       )}
 
       {gameState === "tutorial" && (
-        <div className="z-10 glass-panel p-4 md:p-10 rounded-2xl md:rounded-3xl shadow-2xl max-w-sm md:max-w-lg w-full mx-3 md:mx-4 border-2 border-white/50 animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div className="z-10 glass-panel w-full h-full overflow-y-auto custom-scrollbar p-4 rounded-none border-0 shadow-none animate-in fade-in zoom-in duration-300 md:p-10 md:rounded-3xl md:shadow-2xl md:max-w-lg md:w-full md:h-auto md:mx-4 md:border-2 md:border-white/50 md:max-h-[90vh]">
           <div className="flex items-center mb-4 md:mb-6 relative">
             <button 
               onClick={() => setGameState("menu")}
@@ -388,7 +388,7 @@ export default function Home() {
       )}
 
       {gameState === "updates" && (
-        <div className="z-10 glass-panel p-4 md:p-10 rounded-2xl md:rounded-3xl shadow-2xl max-w-sm md:max-w-lg w-full mx-3 md:mx-4 border-2 border-white/50 animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div className="z-10 glass-panel w-full h-full overflow-y-auto custom-scrollbar p-4 rounded-none border-0 shadow-none animate-in fade-in zoom-in duration-300 md:p-10 md:rounded-3xl md:shadow-2xl md:max-w-lg md:w-full md:h-auto md:mx-4 md:border-2 md:border-white/50 md:max-h-[90vh]">
           <div className="flex items-center mb-4 md:mb-6 relative">
             <button 
               onClick={() => setGameState("menu")}
@@ -427,7 +427,7 @@ export default function Home() {
       )}
 
       {gameState === "gameover" && (
-        <div className="z-10 glass-panel p-5 md:p-12 rounded-2xl md:rounded-3xl shadow-2xl max-w-sm md:max-w-md w-full mx-3 md:mx-4 border-2 border-white/50 animate-in slide-in-from-bottom-8 duration-500 text-center">
+        <div className="z-10 glass-panel w-full h-full overflow-y-auto p-5 rounded-none border-0 shadow-none animate-in slide-in-from-bottom-8 duration-500 text-center md:p-12 md:rounded-3xl md:shadow-2xl md:max-w-md md:w-full md:h-auto md:mx-4 md:border-2 md:border-white/50">
           <h2 className="text-3xl md:text-5xl font-display text-destructive mb-1 md:mb-2">Wasted!</h2>
           <p className="text-lg md:text-xl text-foreground font-bold mb-4 md:mb-6">You captured <span className="text-primary text-2xl md:text-3xl font-display ml-1">{score.toFixed(1)}%</span></p>
           <p className="text-sm md:text-lg text-foreground font-bold mb-4 md:mb-6 flex items-center justify-center gap-2">
