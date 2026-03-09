@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { GameEngine } from '@/lib/game/Engine';
 import type { ServerMessage, ClientMessage, LeaderboardEntry } from '@shared/game/Protocol';
-import type { Direction } from '@shared/game/Constants';
+import type { Direction, TrailType } from '@shared/game/Constants';
 import { soundEffects } from '@/lib/audio/sound';
 
 interface GameCanvasProps {
   playerName: string;
   playerColor?: string;
-  trailType?: "grass" | "flame" | "star" | "smile";
+  trailType?: TrailType;
   fireballCount?: number;
   onGameOver: (score: number, reason?: string, survivedSeconds?: number) => void;
   onScoreUpdate: (score: number) => void;

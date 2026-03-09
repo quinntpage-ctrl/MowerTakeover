@@ -79,6 +79,7 @@ export class GameEngine {
   private claimFlashes: ClaimFlash[] = [];
   private logoImage: HTMLImageElement;
   private terrainCanvas: HTMLCanvasElement | null = null;
+  private leaderId: string | null = null;
 
   private displayPositions: Map<string, { x: number; y: number }> = new Map();
   private playerSnapshots: Map<string, PlayerSnapshot> = new Map();
@@ -317,6 +318,29 @@ export class GameEngine {
           color: '#fbbf24', size: Math.random()*6+8,
           rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*1, type: 'smile'
         });
+      } else if (p.trailType === 'money') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*24; vy = 18+Math.random()*16; py += 12; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*24; vy = -18-Math.random()*16; py -= 12; }
+        else if (p.direction === 'LEFT') { vx = 18+Math.random()*16; vy = (Math.random()-0.5)*24; px += 12; }
+        else { vx = -18-Math.random()*16; vy = (Math.random()-0.5)*24; px -= 12; }
+        this.particles.push({
+          x: px+(Math.random()-0.5)*10, y: py+(Math.random()-0.5)*10,
+          vx, vy, life: Math.random()*0.7+0.45, maxLife: 1.15,
+          color: ['#22c55e', '#4ade80', '#86efac'][Math.floor(Math.random()*3)],
+          size: Math.random()*4+7,
+          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*3, type: 'money'
+        });
+      } else if (p.trailType === 'banana') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*18; vy = 14+Math.random()*14; py += 12; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*18; vy = -14-Math.random()*14; py -= 12; }
+        else if (p.direction === 'LEFT') { vx = 14+Math.random()*14; vy = (Math.random()-0.5)*18; px += 12; }
+        else { vx = -14-Math.random()*14; vy = (Math.random()-0.5)*18; px -= 12; }
+        this.particles.push({
+          x: px+(Math.random()-0.5)*8, y: py+(Math.random()-0.5)*8,
+          vx, vy, life: Math.random()*0.55+0.45, maxLife: 1.0,
+          color: '#facc15', size: Math.random()*3+7,
+          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*2, type: 'banana'
+        });
       } else {
         if (p.direction === 'UP') { vx = 80+Math.random()*40; vy = (Math.random()-0.5)*40; px += 10; }
         else if (p.direction === 'DOWN') { vx = -80-Math.random()*40; vy = (Math.random()-0.5)*40; px -= 10; }
@@ -333,6 +357,7 @@ export class GameEngine {
   }
 
   applyLeaderboard(board: LeaderboardEntry[]) {
+    this.leaderId = board[0]?.id ?? null;
     this.callbacks.onLeaderboardUpdate(board);
   }
 
@@ -720,6 +745,24 @@ export class GameEngine {
       else if (ip.direction === 'DOWN') this.ctx.rotate(Math.PI);
       else if (ip.direction === 'LEFT') this.ctx.rotate(-Math.PI / 2);
 
+      if (!p.isDead && this.leaderId === p.id) {
+        const pulse = 0.72 + 0.28 * Math.sin(this.lastTimestamp / 180);
+        this.ctx.strokeStyle = '#fde047';
+        this.ctx.lineWidth = 6;
+        this.ctx.shadowColor = 'rgba(253, 224, 71, 0.85)';
+        this.ctx.shadowBlur = 20;
+        this.ctx.beginPath();
+        this.ctx.roundRect(-24, -22, 48, 44, 12);
+        this.ctx.stroke();
+
+        this.ctx.strokeStyle = `rgba(255,255,255,${0.35 + pulse * 0.25})`;
+        this.ctx.lineWidth = 2;
+        this.ctx.shadowBlur = 0;
+        this.ctx.beginPath();
+        this.ctx.roundRect(-28, -26, 56, 52, 16);
+        this.ctx.stroke();
+      }
+
       if (p.invincibleTimeLeft > 0) {
         this.ctx.strokeStyle = '#38bdf8';
         this.ctx.lineWidth = 4;
@@ -811,6 +854,40 @@ export class GameEngine {
           this.ctx.lineWidth = p.size * 0.1;
           this.ctx.beginPath();
           this.ctx.arc(0, p.size * 0.1, p.size * 0.5, 0.1, Math.PI - 0.1);
+          this.ctx.stroke();
+        } else if (p.type === 'money') {
+          this.ctx.fillStyle = p.color;
+          this.ctx.strokeStyle = '#166534';
+          this.ctx.lineWidth = 1.5;
+          this.ctx.beginPath();
+          this.ctx.roundRect(-p.size * 0.75, -p.size * 0.45, p.size * 1.5, p.size * 0.9, 2);
+          this.ctx.fill();
+          this.ctx.stroke();
+
+          this.ctx.strokeStyle = '#14532d';
+          this.ctx.lineWidth = 1;
+          this.ctx.beginPath();
+          this.ctx.arc(0, 0, p.size * 0.22, 0, Math.PI * 2);
+          this.ctx.stroke();
+          this.ctx.beginPath();
+          this.ctx.moveTo(0, -p.size * 0.18);
+          this.ctx.lineTo(0, p.size * 0.18);
+          this.ctx.stroke();
+        } else if (p.type === 'banana') {
+          this.ctx.strokeStyle = p.color;
+          this.ctx.lineWidth = Math.max(2, p.size * 0.32);
+          this.ctx.lineCap = 'round';
+          this.ctx.beginPath();
+          this.ctx.arc(0, 0, p.size * 0.55, 0.3, 2.45);
+          this.ctx.stroke();
+
+          this.ctx.strokeStyle = '#a16207';
+          this.ctx.lineWidth = Math.max(1, p.size * 0.1);
+          this.ctx.beginPath();
+          this.ctx.moveTo(-p.size * 0.45, p.size * 0.08);
+          this.ctx.lineTo(-p.size * 0.62, p.size * 0.18);
+          this.ctx.moveTo(p.size * 0.35, p.size * 0.34);
+          this.ctx.lineTo(p.size * 0.5, p.size * 0.48);
           this.ctx.stroke();
         } else {
           this.ctx.fillStyle = p.color;

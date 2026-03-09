@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
+import MowerCustomizerPreview from "@/components/game/MowerCustomizerPreview";
 import { Joystick, Flame, Star, Smile, Crown, Info, ArrowLeft, Crosshair, Skull, Shield, Volume2, VolumeX } from "lucide-react";
-import { PLAYER_COLORS } from "@shared/game/Constants";
+import { PLAYER_COLORS, type TrailType } from "@shared/game/Constants";
 import type { LeaderboardEntry } from "@shared/game/Protocol";
 import { soundEffects } from "@/lib/audio/sound";
 
@@ -31,7 +32,99 @@ function GrassIcon({ className }: { className?: string }) {
   );
 }
 
+function MoneyIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="6" width="18" height="12" rx="2.5" />
+      <circle cx="12" cy="12" r="2.7" />
+      <path d="M7 9h0.01" />
+      <path d="M17 15h0.01" />
+      <path d="M11.2 10.6c.2-.4.6-.6 1.1-.6.7 0 1.2.3 1.2.9 0 .5-.3.7-1.1.9-.8.2-1.4.5-1.4 1.2 0 .7.6 1.2 1.5 1.2.6 0 1-.2 1.3-.6" />
+    </svg>
+  );
+}
+
+function BananaIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M8.5 5.5c-.9 3.8.4 8 3.4 11s7.2 4.3 11 3.4" />
+      <path d="M7.2 8.5c-.9.5-1.8 1.7-2.2 3-.4 1.2-.3 2.4.2 3.2.8 1.5 2.5 2.4 4.6 2.4 3.5 0 7.8-2.4 10.3-6.2" />
+      <path d="M7.6 5.4c.7-.7 1.6-1 2.6-.9" />
+    </svg>
+  );
+}
+
+function TrailChoiceIcon({
+  trailType,
+  className,
+}: {
+  trailType: TrailType;
+  className?: string;
+}) {
+  if (trailType === "grass") return <GrassIcon className={className} />;
+  if (trailType === "flame") return <Flame className={className} />;
+  if (trailType === "star") return <Star className={className} />;
+  if (trailType === "smile") return <Smile className={className} />;
+  if (trailType === "money") return <MoneyIcon className={className} />;
+  return <BananaIcon className={className} />;
+}
+
+function getTrailLabel(trailType: TrailType) {
+  switch (trailType) {
+    case "grass":
+      return "Clips";
+    case "flame":
+      return "Flame";
+    case "star":
+      return "Stars";
+    case "smile":
+      return "Smiles";
+    case "money":
+      return "Money";
+    case "banana":
+      return "Bananas";
+  }
+}
+
 const HOME_UPDATES = [
+  {
+    date: "Mar 9, 2026",
+    title: "Guided Tutorial",
+    description: "The start screen now has a clearer tutorial button and a step-by-step walkthrough for new players.",
+  },
+  {
+    date: "Mar 9, 2026",
+    title: "First Place Highlight",
+    description: "The current leader now gets a big golden highlight around their mower so first place is obvious in the arena.",
+  },
+  {
+    date: "Mar 9, 2026",
+    title: "Money + Banana Trails",
+    description: "Two new trail styles are in the customizer with matching live in-game particle effects and preview animation.",
+  },
+  {
+    date: "Mar 9, 2026",
+    title: "Mower Customizer",
+    description: "Color and trail selection now live in a dedicated customization window with an animated in-game mower and trail preview.",
+  },
   {
     date: "Mar 9, 2026",
     title: "Post-Match Recap",
@@ -89,7 +182,7 @@ function formatSurvivalTime(seconds: number) {
 }
 
 export default function Home() {
-  const [gameState, setGameState] = useState<"menu" | "playing" | "gameover" | "tutorial" | "updates">("menu");
+  const [gameState, setGameState] = useState<"menu" | "playing" | "gameover" | "tutorial" | "updates" | "customize">("menu");
   const [playerName, setPlayerName] = useState("");
   const [score, setScore] = useState(0);
   const [finalScore, setFinalScore] = useState(0);
@@ -101,7 +194,7 @@ export default function Home() {
   const [soundsMuted, setSoundsMuted] = useState(() => soundEffects.isMuted());
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
-  const [trailType, setTrailType] = useState<"grass" | "flame" | "star" | "smile">("grass");
+  const [trailType, setTrailType] = useState<TrailType>("grass");
   const shootRef = useRef<(() => void) | null>(null);
   const previousFireballsRef = useRef(0);
   const previousInvincibleRef = useRef(0);
@@ -312,75 +405,6 @@ export default function Home() {
               autoFocus
               data-testid="input-player-name"
             />
-            
-            <div className="space-y-1 md:space-y-2">
-              <label className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-wider block text-left">Color</label>
-              <div className="flex flex-wrap gap-1.5 md:gap-2 justify-center">
-                {PLAYER_COLORS.map(color => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => {
-                      soundEffects.playClick();
-                      setSelectedColor(color);
-                    }}
-                    className={`w-6 h-6 md:w-8 md:h-8 rounded-full transition-transform ${selectedColor === color ? 'scale-125 ring-3 ring-white shadow-lg' : 'hover:scale-110 shadow-sm'}`}
-                    style={{ backgroundColor: color }}
-                    aria-label={`Select color ${color}`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1 md:space-y-2">
-              <label className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-wider block text-left">Trail</label>
-              <div className="grid grid-cols-4 gap-1.5 md:gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundEffects.playClick();
-                    setTrailType("grass");
-                  }}
-                  className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'grass' ? 'border-primary bg-primary/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
-                >
-                  <GrassIcon className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'grass' ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-[8px] md:text-[10px]">Clips</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundEffects.playClick();
-                    setTrailType("flame");
-                  }}
-                  className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'flame' ? 'border-orange-500 bg-orange-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
-                >
-                  <Flame className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'flame' ? 'text-orange-500' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-[8px] md:text-[10px]">Flame</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundEffects.playClick();
-                    setTrailType("star");
-                  }}
-                  className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'star' ? 'border-yellow-400 bg-yellow-400/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
-                >
-                  <Star className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'star' ? 'text-yellow-400' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-[8px] md:text-[10px]">Stars</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundEffects.playClick();
-                    setTrailType("smile");
-                  }}
-                  className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'smile' ? 'border-blue-500 bg-blue-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
-                >
-                  <Smile className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'smile' ? 'text-blue-500' : 'text-muted-foreground'}`} />
-                  <span className="font-bold text-[8px] md:text-[10px]">Smiles</span>
-                </button>
-              </div>
-            </div>
 
             <Button 
               type="submit" 
@@ -402,8 +426,34 @@ export default function Home() {
               data-testid="button-tutorial"
             >
               <Info className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              How to Play
+              Tutorial
             </Button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.playClick();
+                setGameState("customize");
+              }}
+              className="w-full rounded-xl border-2 border-primary/20 bg-white/60 px-3 py-3 shadow-sm transition-all hover:border-primary/45 hover:bg-white/80"
+              data-testid="button-customize"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="h-8 w-8 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: selectedColor }} />
+                  <div className="text-left">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Customize Mower</div>
+                    <div className="mt-0.5 flex items-center gap-2 text-sm font-bold text-foreground">
+                      <TrailChoiceIcon trailType={trailType} className="w-4 h-4 text-primary" />
+                      <span>{getTrailLabel(trailType)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
+                  Open
+                </div>
+              </div>
+            </button>
 
             <Button
               type="button"
@@ -447,58 +497,79 @@ export default function Home() {
             >
               <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-foreground/70" />
             </button>
-            <h2 className="text-2xl md:text-3xl font-display text-primary w-full text-center">How to Play</h2>
+            <h2 className="text-2xl md:text-3xl font-display text-primary w-full text-center">Tutorial</h2>
           </div>
 
-          <div className="space-y-3 md:space-y-6 text-left">
-            <div className="flex gap-3 md:gap-4 items-start bg-white/40 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white">
-              <div className="bg-green-100 p-2 md:p-3 rounded-lg md:rounded-xl shrink-0">
-                <Joystick className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base md:text-lg mb-0.5 md:mb-1">Steer Your Mower</h3>
-                <p className="text-muted-foreground text-xs md:text-sm">Use <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">WASD</kbd> or <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">Arrows</kbd> on desktop. On mobile, just <strong>swipe</strong>.</p>
+          <div className="space-y-3 md:space-y-5 text-left">
+            <div className="rounded-2xl border border-white bg-white/50 p-4 md:p-5">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.24em] text-primary/70">Quick Goal</div>
+              <h3 className="mt-2 text-lg md:text-2xl font-display text-foreground">Make loops. Claim land. Stay alive longer than everyone else.</h3>
+              <p className="mt-2 text-xs md:text-sm font-semibold text-muted-foreground">
+                The whole game is about leaving your safe grass, drawing a line, and reconnecting it before another mower cuts you off.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white bg-white/45 p-4 md:p-5">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.24em] text-primary/70 mb-3">Step By Step</div>
+              <div className="space-y-3 md:space-y-4">
+                <div className="flex gap-3 items-start">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-display text-green-700">1</div>
+                  <div>
+                    <h4 className="font-bold text-sm md:text-base">Steer your mower out of your base</h4>
+                    <p className="text-xs md:text-sm text-muted-foreground">Use <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">WASD</kbd> or <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">Arrows</kbd> on desktop. On mobile, <strong>swipe</strong> to turn.</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-display text-primary">2</div>
+                  <div>
+                    <h4 className="font-bold text-sm md:text-base">Draw a loop outside your territory</h4>
+                    <p className="text-xs md:text-sm text-muted-foreground">The line behind you is vulnerable. If another mower touches it before you get back, you die.</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-display text-emerald-700">3</div>
+                  <div>
+                    <h4 className="font-bold text-sm md:text-base">Reconnect to your land to capture the whole enclosed area</h4>
+                    <p className="text-xs md:text-sm text-muted-foreground">Small safe loops are better than greedy ones. Big loops are worth more but are easier to punish.</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-display text-amber-700">4</div>
+                  <div>
+                    <h4 className="font-bold text-sm md:text-base">Use pickups to swing fights</h4>
+                    <p className="text-xs md:text-sm text-muted-foreground">Fireballs burn land and kill mowers. Blue shields give you <strong>8 seconds</strong> of invincibility to make risky plays.</p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-3 md:gap-4 items-start bg-white/40 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white">
-              <div className="bg-primary/10 p-2 md:p-3 rounded-lg md:rounded-xl shrink-0">
-                <Crosshair className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="flex gap-3 items-start bg-white/40 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white">
+                <div className="bg-red-100 p-2 md:p-3 rounded-lg md:rounded-xl shrink-0">
+                  <Skull className="w-5 h-5 md:w-6 md:h-6 text-red-500" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base md:text-lg mb-0.5 md:mb-1">How You Die</h3>
+                  <p className="text-muted-foreground text-xs md:text-sm">Enemy hits your trail, you hit your own trail, wall collision, or you get blasted by a fireball.</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-base md:text-lg mb-0.5 md:mb-1">Capture Territory</h3>
-                <p className="text-muted-foreground text-xs md:text-sm">Leave your base to draw a trail. Connect back to your territory to capture the enclosed area.</p>
+
+              <div className="flex gap-3 md:gap-4 items-start bg-white/40 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white">
+                <div className="bg-orange-100 p-2 md:p-3 rounded-lg md:rounded-xl shrink-0">
+                  <Flame className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base md:text-lg mb-0.5 md:mb-1">How You Fight Back</h3>
+                  <p className="text-muted-foreground text-xs md:text-sm">Collect fireballs and press <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">SPACE</kbd> or tap the orange button on mobile.</p>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-3 md:gap-4 items-start bg-white/40 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white">
-              <div className="bg-orange-100 p-2 md:p-3 rounded-lg md:rounded-xl shrink-0">
-                <Flame className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base md:text-lg mb-0.5 md:mb-1">Shoot Fireballs</h3>
-                <p className="text-muted-foreground text-xs md:text-sm">Collect fireballs and press <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">SPACE</kbd> to shoot! Burns enemy territory or eliminates players.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 md:gap-4 items-start bg-white/40 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white">
-              <div className="bg-red-100 p-2 md:p-3 rounded-lg md:rounded-xl shrink-0">
-                <Skull className="w-5 h-5 md:w-6 md:h-6 text-red-500" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base md:text-lg mb-0.5 md:mb-1">Don't Get Wasted</h3>
-                <p className="text-muted-foreground text-xs md:text-sm">You die if someone crosses your trail, you hit your own trail, or you get hit by a fireball.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 md:gap-4 items-start bg-white/40 p-3 md:p-4 rounded-xl md:rounded-2xl border border-white">
-              <div className="bg-sky-100 p-2 md:p-3 rounded-lg md:rounded-xl shrink-0">
-                <Shield className="w-5 h-5 md:w-6 md:h-6 text-sky-500" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base md:text-lg mb-0.5 md:mb-1">Invincibility Drops</h3>
-                <p className="text-muted-foreground text-xs md:text-sm">Rare blue shield drops make your mower invincible for <strong>8 seconds</strong>. Watch the countdown in the top-left HUD.</p>
-              </div>
+            <div className="rounded-2xl border border-white bg-white/50 p-4 md:p-5">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.24em] text-primary/70 mb-2">Winning Tip</div>
+              <p className="text-xs md:text-sm font-semibold text-muted-foreground">
+                Early game: make quick small captures. Mid game: look for exposed enemy trails. Late game: defend your edges and only go wide when you have invincibility or a fireball advantage.
+              </p>
             </div>
           </div>
 
@@ -510,6 +581,96 @@ export default function Home() {
             className="w-full h-11 md:h-14 text-lg md:text-xl font-display rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90 mt-4 md:mt-8"
           >
             Got it!
+          </Button>
+        </div>
+      )}
+
+      {gameState === "customize" && (
+        <div className="z-10 glass-panel w-full h-full overflow-y-auto custom-scrollbar p-4 rounded-none border-0 shadow-none animate-in fade-in zoom-in duration-300 md:p-10 md:rounded-3xl md:shadow-2xl md:max-w-lg md:w-full md:h-auto md:mx-4 md:border-2 md:border-white/50 md:max-h-[90vh]">
+          <div className="flex items-center mb-4 md:mb-6 relative">
+            <button
+              onClick={() => {
+                soundEffects.playClick();
+                setGameState("menu");
+              }}
+              className="absolute left-0 p-1.5 md:p-2 rounded-full hover:bg-black/5 transition-colors"
+              aria-label="Back to menu"
+            >
+              <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-foreground/70" />
+            </button>
+            <h2 className="text-2xl md:text-3xl font-display text-primary w-full text-center">Customize Mower</h2>
+          </div>
+
+          <div className="space-y-4 md:space-y-6">
+            <div className="overflow-hidden rounded-[28px] border border-white/70 bg-white/25 p-2 shadow-inner">
+              <MowerCustomizerPreview color={selectedColor} trailType={trailType} />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/55 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-foreground/70">
+              <span>Live Preview</span>
+              <span className="text-primary">{getTrailLabel(trailType)}</span>
+            </div>
+
+            <div className="rounded-2xl border border-white bg-white/45 p-4 md:p-5">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary/70">Color</div>
+              <div className="mt-3 flex flex-wrap gap-2 md:gap-3 justify-center">
+                {PLAYER_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => {
+                      soundEffects.playClick();
+                      setSelectedColor(color);
+                    }}
+                    className={`h-10 w-10 md:h-12 md:w-12 rounded-full border-4 border-white shadow-lg transition-transform ${selectedColor === color ? "scale-110 ring-4 ring-primary/25" : "hover:scale-105"}`}
+                    style={{ backgroundColor: color }}
+                    aria-label={`Select color ${color}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white bg-white/45 p-4 md:p-5">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary/70">Trail</div>
+              <div className="mt-3 grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3">
+                {([
+                  { value: "grass", accent: "border-primary bg-primary/10 text-primary" },
+                  { value: "flame", accent: "border-orange-500 bg-orange-500/10 text-orange-500" },
+                  { value: "star", accent: "border-yellow-400 bg-yellow-400/10 text-yellow-500" },
+                  { value: "smile", accent: "border-blue-500 bg-blue-500/10 text-blue-500" },
+                  { value: "money", accent: "border-emerald-500 bg-emerald-500/10 text-emerald-600" },
+                  { value: "banana", accent: "border-amber-400 bg-amber-400/10 text-amber-500" },
+                ] as const).map((option) => {
+                  const active = trailType === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setTrailType(option.value);
+                      }}
+                      className={`rounded-xl border-2 px-3 py-3 text-center transition-all ${active ? option.accent : "border-border/50 bg-white/60 text-muted-foreground hover:bg-white/85"}`}
+                    >
+                      <div className="flex justify-center">
+                        <TrailChoiceIcon trailType={option.value} className="h-5 w-5 md:h-6 md:w-6" />
+                      </div>
+                      <div className="mt-2 text-xs md:text-sm font-bold">{getTrailLabel(option.value)}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => {
+              soundEffects.playClick();
+              setGameState("menu");
+            }}
+            className="w-full h-11 md:h-14 text-lg md:text-xl font-display rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90 mt-4 md:mt-8"
+          >
+            Save Look
           </Button>
         </div>
       )}

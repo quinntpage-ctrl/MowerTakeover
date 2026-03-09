@@ -14,7 +14,7 @@ export const INVINCIBILITY_DURATION = 8;
 export const INVINCIBILITY_RESPAWN_DELAY = 12;
 
 export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
-export type TrailType = 'grass' | 'flame' | 'star' | 'smile';
+export type TrailType = 'grass' | 'flame' | 'star' | 'smile' | 'money' | 'banana';
 
 export const COLORS = {
   bg: '#94a3b8',
