@@ -93,16 +93,16 @@ export class GameEngine {
     }
 
     const currentIds = new Set(players.map(p => p.id));
-    for (const [id] of this.prevTerritories) {
+    this.prevTerritories.forEach((_territory, id) => {
       if (!currentIds.has(id)) {
         this.prevTerritories.delete(id);
       }
-    }
-    for (const [id] of this.displayPositions) {
+    });
+    this.displayPositions.forEach((_position, id) => {
       if (!currentIds.has(id)) {
         this.displayPositions.delete(id);
       }
-    }
+    });
 
     this.players = players;
     this.fireballs = fireballs;
