@@ -8,7 +8,7 @@ export interface PlayerData {
   x: number;
   y: number;
   direction: Direction;
-  territory: string[];
+  territory?: string[];
   trail: Point[];
   isDead: boolean;
   deathAlpha: number;

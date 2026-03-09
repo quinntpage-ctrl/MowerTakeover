@@ -32,6 +32,11 @@ interface ClaimFlash {
   color: string;
 }
 
+interface TerritoryRenderData {
+  keys: Set<string>;
+  cells: Point[];
+}
+
 interface PlayerSnapshot {
   x: number;
   y: number;
@@ -48,6 +53,8 @@ interface FireballSnapshot {
   receivedAt: number;
 }
 
+type ResolvedPlayerData = Omit<PlayerData, 'territory'> & { territory: string[] };
+
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -55,11 +62,11 @@ export class GameEngine {
   private height: number = 0;
 
   private localPlayerId: string = '';
-  private players: PlayerData[] = [];
+  private players: ResolvedPlayerData[] = [];
   private fireballs: FireballData[] = [];
   private collectibles: CollectibleData[] = [];
 
-  private prevTerritories: Map<string, Set<string>> = new Map();
+  private territoryRenderCache: Map<string, TerritoryRenderData> = new Map();
 
   private animationFrameId: number = 0;
   private isRunning: boolean = false;
@@ -71,6 +78,7 @@ export class GameEngine {
   private particles: Particle[] = [];
   private claimFlashes: ClaimFlash[] = [];
   private logoImage: HTMLImageElement;
+  private terrainCanvas: HTMLCanvasElement | null = null;
 
   private displayPositions: Map<string, { x: number; y: number }> = new Map();
   private playerSnapshots: Map<string, PlayerSnapshot> = new Map();
@@ -94,21 +102,27 @@ export class GameEngine {
 
   applyState(players: PlayerData[], fireballs: FireballData[], collectibles: CollectibleData[]) {
     const snapshotTime = performance.now();
+    const resolvedPlayers = this.resolvePlayers(players);
+    const incomingPlayers = new Map(players.map(player => [player.id, player]));
 
-    for (const p of players) {
-      const prevTerrSet = this.prevTerritories.get(p.id);
-      const newTerrSet = new Set(p.territory);
+    for (const p of resolvedPlayers) {
+      const incomingPlayer = incomingPlayers.get(p.id);
+      if (Array.isArray(incomingPlayer?.territory) || !this.territoryRenderCache.has(p.id)) {
+        const nextTerritory = this.buildTerritoryRenderData(p.territory);
+        const prevTerritory = this.territoryRenderCache.get(p.id);
 
-      if (prevTerrSet) {
-        for (const key of p.territory) {
-          if (!prevTerrSet.has(key)) {
-            const [cx, cy] = key.split(',').map(Number);
-            this.claimFlashes.push({ x: cx, y: cy, alpha: 1.0, color: p.color });
+        if (prevTerritory) {
+          for (const key of nextTerritory.keys) {
+            if (!prevTerritory.keys.has(key)) {
+              const [cx, cy] = key.split(',').map(Number);
+              this.claimFlashes.push({ x: cx, y: cy, alpha: 1.0, color: p.color });
+            }
           }
         }
+
+        this.territoryRenderCache.set(p.id, nextTerritory);
       }
 
-      this.prevTerritories.set(p.id, newTerrSet);
       this.playerSnapshots.set(p.id, {
         x: p.x,
         y: p.y,
@@ -122,10 +136,10 @@ export class GameEngine {
       }
     }
 
-    const currentIds = new Set(players.map(p => p.id));
-    this.prevTerritories.forEach((_territory, id) => {
+    const currentIds = new Set(resolvedPlayers.map(p => p.id));
+    this.territoryRenderCache.forEach((_territory, id) => {
       if (!currentIds.has(id)) {
-        this.prevTerritories.delete(id);
+        this.territoryRenderCache.delete(id);
       }
     });
     this.displayPositions.forEach((_position, id) => {
@@ -164,7 +178,7 @@ export class GameEngine {
       }
     });
 
-    this.players = players;
+    this.players = resolvedPlayers;
     this.fireballs = fireballs;
     this.collectibles = collectibles;
 
@@ -179,13 +193,91 @@ export class GameEngine {
     this.spawnTrailParticles();
   }
 
+  private resolvePlayers(players: PlayerData[]): ResolvedPlayerData[] {
+    const previousPlayers = new Map(this.players.map(player => [player.id, player]));
+    return players.map(player => {
+      const territory = player.territory ?? previousPlayers.get(player.id)?.territory ?? [];
+      return {
+        ...(previousPlayers.get(player.id) ?? {}),
+        ...player,
+        territory,
+      } as ResolvedPlayerData;
+    });
+  }
+
+  private buildTerritoryRenderData(territory: string[]): TerritoryRenderData {
+    return {
+      keys: new Set(territory),
+      cells: territory.map(key => this.parseCellKey(key)),
+    };
+  }
+
+  private parseCellKey(key: string): Point {
+    const separator = key.indexOf(',');
+    return {
+      x: Number(key.slice(0, separator)),
+      y: Number(key.slice(separator + 1)),
+    };
+  }
+
+  private ensureTerrainCanvas() {
+    if (this.terrainCanvas) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = WORLD_WIDTH;
+    canvas.height = WORLD_HEIGHT;
+
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) return;
+
+    ctx.fillStyle = '#86efac';
+    ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+    ctx.fillStyle = '#22c55e';
+    for (let x = 0; x < WORLD_WIDTH; x += CELL_SIZE) {
+      for (let y = 0; y < WORLD_HEIGHT; y += CELL_SIZE) {
+        const seed1 = (x * 13 + y * 37) % 100 / 100;
+        const seed2 = (x * 59 + y * 17) % 100 / 100;
+
+        const drawTuft = (sx: number, sy: number) => {
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx - 3, sy - 8);
+          ctx.lineTo(sx + 1, sy - 10);
+          ctx.lineTo(sx + 3, sy - 2);
+          ctx.fill();
+        };
+
+        drawTuft(x + 5 + seed1 * 10, y + 15 + seed2 * 10);
+        drawTuft(x + 18 + seed2 * 5, y + 25 + seed1 * 5);
+      }
+    }
+
+    ctx.strokeStyle = 'rgba(74, 222, 128, 0.45)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= WORLD_WIDTH; x += CELL_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, WORLD_HEIGHT);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= WORLD_HEIGHT; y += CELL_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(WORLD_WIDTH, y);
+      ctx.stroke();
+    }
+
+    this.terrainCanvas = canvas;
+  }
+
   private spawnTrailParticles() {
     for (const p of this.players) {
       if (p.isDead) continue;
       const ip = this.getDisplayPos(p);
       const cellKey = `${Math.floor(ip.x / CELL_SIZE)},${Math.floor(ip.y / CELL_SIZE)}`;
-      const terrSet = this.prevTerritories.get(p.id);
-      if (terrSet && terrSet.has(cellKey)) continue;
+      const terrSet = this.territoryRenderCache.get(p.id)?.keys;
+      if (terrSet?.has(cellKey)) continue;
 
       if (Math.random() > 0.4) continue;
 
@@ -297,7 +389,7 @@ export class GameEngine {
     this.animationFrameId = requestAnimationFrame(this.renderLoop);
   }
 
-  private updateDisplayPosition(dp: { x: number; y: number }, snapshot: PlayerSnapshot, p: PlayerData, dt: number) {
+  private updateDisplayPosition(dp: { x: number; y: number }, snapshot: PlayerSnapshot, p: ResolvedPlayerData, dt: number) {
     let vx = 0;
     let vy = 0;
     if (!snapshot.isDead) {
@@ -339,7 +431,7 @@ export class GameEngine {
     dp.y += dy * correction;
   }
 
-  private getDisplayPos(p: PlayerData): { x: number; y: number; direction: Direction } {
+  private getDisplayPos(p: ResolvedPlayerData): { x: number; y: number; direction: Direction } {
     const dp = this.displayPositions.get(p.id);
     if (!dp) return { x: p.x, y: p.y, direction: p.direction };
     return { x: dp.x, y: dp.y, direction: p.direction };
@@ -377,10 +469,11 @@ export class GameEngine {
     return displayPos;
   }
 
-  private buildTrailPath(p: PlayerData, ip: { x: number; y: number; direction: Direction }): Path2D | null {
+  private buildTrailPath(p: ResolvedPlayerData, ip: { x: number; y: number; direction: Direction }): Path2D | null {
     if (p.trail.length === 0) return null;
 
     const path = new Path2D();
+    const territoryKeys = this.territoryRenderCache.get(p.id)?.keys;
     for (let i = 0; i < p.trail.length; i++) {
       const cell = p.trail[i];
       let tcx = cell.x * CELL_SIZE + CELL_SIZE / 2;
@@ -396,11 +489,10 @@ export class GameEngine {
       if (i === 0) {
         let sx = tcx;
         let sy = tcy;
-        const terrSet = new Set(p.territory);
-        if (terrSet.has(`${cell.x - 1},${cell.y}`)) sx -= CELL_SIZE;
-        else if (terrSet.has(`${cell.x + 1},${cell.y}`)) sx += CELL_SIZE;
-        else if (terrSet.has(`${cell.x},${cell.y - 1}`)) sy -= CELL_SIZE;
-        else if (terrSet.has(`${cell.x},${cell.y + 1}`)) sy += CELL_SIZE;
+        if (territoryKeys?.has(`${cell.x - 1},${cell.y}`)) sx -= CELL_SIZE;
+        else if (territoryKeys?.has(`${cell.x + 1},${cell.y}`)) sx += CELL_SIZE;
+        else if (territoryKeys?.has(`${cell.x},${cell.y - 1}`)) sy -= CELL_SIZE;
+        else if (territoryKeys?.has(`${cell.x},${cell.y + 1}`)) sy += CELL_SIZE;
         path.moveTo(sx, sy);
       }
 
@@ -472,6 +564,7 @@ export class GameEngine {
   private draw() {
     this.ctx.fillStyle = '#f3f4f6';
     this.ctx.fillRect(0, 0, this.width, this.height);
+    this.ensureTerrainCanvas();
 
     this.ctx.save();
     this.ctx.translate(
@@ -489,57 +582,20 @@ export class GameEngine {
     const grassEndX = Math.min(WORLD_WIDTH, endX);
     const grassEndY = Math.min(WORLD_HEIGHT, endY);
 
-    if (grassEndX > grassStartX && grassEndY > grassStartY) {
-      this.ctx.fillStyle = '#86efac';
-      this.ctx.fillRect(grassStartX, grassStartY, grassEndX - grassStartX, grassEndY - grassStartY);
-
-      const claimedCells = new Set<string>();
-      for (const p of this.players) {
-        if (!p.isDead) {
-          for (const key of p.territory) {
-            claimedCells.add(key);
-          }
-        }
-      }
-
-      this.ctx.fillStyle = '#22c55e';
-      for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x < grassEndX; x += CELL_SIZE) {
-        for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y < grassEndY; y += CELL_SIZE) {
-          const key = `${Math.floor(x / CELL_SIZE)},${Math.floor(y / CELL_SIZE)}`;
-          if (!claimedCells.has(key)) {
-            const seed1 = (x * 13 + y * 37) % 100 / 100;
-            const seed2 = (x * 59 + y * 17) % 100 / 100;
-
-            const drawTuft = (sx: number, sy: number) => {
-              this.ctx.beginPath();
-              this.ctx.moveTo(sx, sy);
-              this.ctx.lineTo(sx - 3, sy - 8);
-              this.ctx.lineTo(sx + 1, sy - 10);
-              this.ctx.lineTo(sx + 3, sy - 2);
-              this.ctx.fill();
-            };
-
-            drawTuft(x + 5 + seed1 * 10, y + 15 + seed2 * 10);
-            drawTuft(x + 18 + seed2 * 5, y + 25 + seed1 * 5);
-          }
-        }
-      }
-
-      this.ctx.strokeStyle = '#4ade80';
-      this.ctx.lineWidth = 1;
-      for (let x = Math.max(0, Math.floor(grassStartX / CELL_SIZE) * CELL_SIZE); x <= grassEndX; x += CELL_SIZE) {
-        for (let y = Math.max(0, Math.floor(grassStartY / CELL_SIZE) * CELL_SIZE); y <= grassEndY; y += CELL_SIZE) {
-          const key = `${Math.floor(x / CELL_SIZE)},${Math.floor(y / CELL_SIZE)}`;
-          if (!claimedCells.has(key)) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, y);
-            this.ctx.lineTo(x + CELL_SIZE, y);
-            this.ctx.moveTo(x, y);
-            this.ctx.lineTo(x, y + CELL_SIZE);
-            this.ctx.stroke();
-          }
-        }
-      }
+    if (this.terrainCanvas && grassEndX > grassStartX && grassEndY > grassStartY) {
+      const drawWidth = grassEndX - grassStartX;
+      const drawHeight = grassEndY - grassStartY;
+      this.ctx.drawImage(
+        this.terrainCanvas,
+        grassStartX,
+        grassStartY,
+        drawWidth,
+        drawHeight,
+        grassStartX,
+        grassStartY,
+        drawWidth,
+        drawHeight
+      );
     }
 
     this.ctx.strokeStyle = '#EC098D';
@@ -627,30 +683,25 @@ export class GameEngine {
       if (p.isDead && p.deathAlpha <= 0) continue;
 
       const ip = this.getDisplayPos(p);
+      const territory = this.territoryRenderCache.get(p.id);
 
       this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
 
-      for (const key of p.territory) {
-        const [cx, cy] = key.split(',').map(Number);
-        if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
-            cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
-          this.ctx.fillStyle = p.color + '66';
-          this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-          this.ctx.fillStyle = p.color + '33';
-          if (cy % 2 === 0) {
+      if (territory) {
+        for (const cell of territory.cells) {
+          const cx = cell.x;
+          const cy = cell.y;
+          if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
+              cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
+            this.ctx.fillStyle = p.color + '66';
             this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            this.ctx.fillStyle = p.color + '33';
+            if (cy % 2 === 0) {
+              this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            }
           }
         }
       }
-
-      this.claimFlashes.forEach(flash => {
-        if (flash.x * CELL_SIZE >= startX - CELL_SIZE && flash.x * CELL_SIZE <= endX &&
-            flash.y * CELL_SIZE >= startY - CELL_SIZE && flash.y * CELL_SIZE <= endY) {
-          this.ctx.fillStyle = flash.color;
-          this.ctx.globalAlpha = flash.alpha;
-          this.ctx.fillRect(flash.x * CELL_SIZE, flash.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        }
-      });
 
       this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
 
@@ -714,6 +765,17 @@ export class GameEngine {
 
       this.ctx.globalAlpha = 1.0;
     }
+
+    this.claimFlashes.forEach(flash => {
+      if (flash.x * CELL_SIZE >= startX - CELL_SIZE && flash.x * CELL_SIZE <= endX &&
+          flash.y * CELL_SIZE >= startY - CELL_SIZE && flash.y * CELL_SIZE <= endY) {
+        this.ctx.fillStyle = flash.color;
+        this.ctx.globalAlpha = flash.alpha;
+        this.ctx.fillRect(flash.x * CELL_SIZE, flash.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      }
+    });
+
+    this.ctx.globalAlpha = 1.0;
 
     this.particles.forEach(p => {
       if (p.x >= startX && p.x <= endX && p.y >= startY && p.y <= endY) {

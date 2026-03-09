@@ -40,6 +40,7 @@ export class GameRoom {
   private connections: Map<string, ConnectedPlayer> = new Map();
   private fireballs: Fireball[] = [];
   private collectibles: Map<string, Collectible> = new Map();
+  private territoryDirty: Set<string> = new Set();
   private invincibilityRespawnCooldown: number = 0;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private lastTickTime: number = 0;
@@ -76,6 +77,7 @@ export class GameRoom {
 
     this.players.set(playerId, player);
     this.connections.set(playerId, { ws, playerId });
+    this.markTerritoryDirty(playerId);
 
     const welcome: ServerMessage = {
       type: 'welcome',
@@ -201,15 +203,21 @@ export class GameRoom {
 
       if (hitEnemy) {
         if (explode) {
+          const changedTerritories = new Set<string>();
           for (let dx = -EXPLOSION_RADIUS; dx <= EXPLOSION_RADIUS; dx++) {
             for (let dy = -EXPLOSION_RADIUS; dy <= EXPLOSION_RADIUS; dy++) {
               const nKey = `${gridX + dx},${gridY + dy}`;
               this.players.forEach(p => {
                 if (p.id !== fb.ownerId) {
-                  p.territory.delete(nKey);
+                  if (p.territory.delete(nKey)) {
+                    changedTerritories.add(p.id);
+                  }
                 }
               });
             }
+          }
+          if (changedTerritories.size > 0) {
+            this.markTerritoryDirty(...changedTerritories);
           }
           this.players.forEach(p => {
             if (p.id !== fb.ownerId) p.updateScore();
@@ -258,8 +266,11 @@ export class GameRoom {
           if (p.deathAlpha > -1) {
             p.trail = [];
             p.trailSet.clear();
-            p.territory.clear();
-            this.updateAllScores();
+            if (p.territory.size > 0) {
+              p.territory.clear();
+              this.markTerritoryDirty(p.id);
+              this.updateAllScores();
+            }
           }
 
           if (p.isBot) {
@@ -363,24 +374,17 @@ export class GameRoom {
           if (p.trail.length > 0) {
             p.trail.push({ ...newCell });
 
-            p.trail.forEach(t => {
-              const k = `${t.x},${t.y}`;
-              p.territory.add(k);
-              this.players.forEach(other => {
-                if (other.id !== p.id) other.territory.delete(k);
-              });
-            });
+            const changedTerritories = new Set<string>();
+            this.claimTerritory(p, p.trail.map(t => `${t.x},${t.y}`), changedTerritories);
 
             p.trailSet.clear();
             p.trail = [];
 
             const newlyCaptured = captureEnclosedAreas(p.territory);
-            newlyCaptured.forEach(k => {
-              p.territory.add(k);
-              this.players.forEach(other => {
-                if (other.id !== p.id) other.territory.delete(k);
-              });
-            });
+            this.claimTerritory(p, newlyCaptured, changedTerritories);
+            if (changedTerritories.size > 0) {
+              this.markTerritoryDirty(...changedTerritories);
+            }
 
             const toKill: string[] = [];
             this.players.forEach(player => {
@@ -593,22 +597,27 @@ export class GameRoom {
     p.x = x;
     p.y = y;
 
+    const changedTerritories = new Set<string>();
+    if (p.territory.size > 0) {
+      changedTerritories.add(p.id);
+    }
     p.territory.clear();
     const startGridX = Math.floor(p.x / CELL_SIZE);
     const startGridY = Math.floor(p.y / CELL_SIZE);
 
+    const spawnKeys: string[] = [];
     for (let dx = -3; dx <= 3; dx++) {
       for (let dy = -3; dy <= 3; dy++) {
         const nx = startGridX + dx;
         const ny = startGridY + dy;
         if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
-          const key = `${nx},${ny}`;
-          p.territory.add(key);
-          this.players.forEach(other => {
-            if (other.id !== p.id) other.territory.delete(key);
-          });
+          spawnKeys.push(`${nx},${ny}`);
         }
       }
+    }
+    this.claimTerritory(p, spawnKeys, changedTerritories);
+    if (changedTerritories.size > 0) {
+      this.markTerritoryDirty(...changedTerritories);
     }
     p.updateScore();
 
@@ -735,6 +744,28 @@ export class GameRoom {
     this.players.forEach(p => p.updateScore());
   }
 
+  private markTerritoryDirty(...playerIds: string[]) {
+    playerIds.forEach(playerId => {
+      if (playerId) {
+        this.territoryDirty.add(playerId);
+      }
+    });
+  }
+
+  private claimTerritory(owner: PlayerState, keys: Iterable<string>, changedTerritories: Set<string>) {
+    for (const key of keys) {
+      if (!owner.territory.has(key)) {
+        owner.territory.add(key);
+        changedTerritories.add(owner.id);
+      }
+      this.players.forEach(other => {
+        if (other.id !== owner.id && other.territory.delete(key)) {
+          changedTerritories.add(other.id);
+        }
+      });
+    }
+  }
+
   private getLeaderboard(): LeaderboardEntry[] {
     return Array.from(this.players.values())
       .filter(p => !p.isDead || p.deathAlpha > 0)
@@ -742,7 +773,7 @@ export class GameRoom {
       .sort((a, b) => (b.score - a.score) || (b.takeovers - a.takeovers));
   }
 
-  private serializePlayer(p: PlayerState): PlayerData {
+  private serializePlayer(p: PlayerState, includeTerritory: boolean = true): PlayerData {
     return {
       id: p.id,
       name: p.name,
@@ -750,7 +781,7 @@ export class GameRoom {
       x: p.x,
       y: p.y,
       direction: p.direction,
-      territory: Array.from(p.territory),
+      territory: includeTerritory ? Array.from(p.territory) : undefined,
       trail: p.trail.map(t => ({ x: t.x, y: t.y })),
       isDead: p.isDead,
       deathAlpha: p.deathAlpha,
@@ -773,7 +804,7 @@ export class GameRoom {
 
   private getFullSnapshot(): GameStateSnapshot {
     return {
-      players: Array.from(this.players.values()).map(p => this.serializePlayer(p)),
+      players: Array.from(this.players.values()).map(p => this.serializePlayer(p, true)),
       fireballs: this.fireballs.map(fb => this.serializeFireball(fb)),
       collectibles: Array.from(this.collectibles.values()).map(c => this.serializeCollectible(c)),
       leaderboard: this.getLeaderboard()
@@ -783,11 +814,12 @@ export class GameRoom {
   private broadcastState() {
     const msg: ServerMessage = {
       type: 'state',
-      players: Array.from(this.players.values()).map(p => this.serializePlayer(p)),
+      players: Array.from(this.players.values()).map(p => this.serializePlayer(p, this.territoryDirty.has(p.id))),
       fireballs: this.fireballs.map(fb => this.serializeFireball(fb)),
       collectibles: Array.from(this.collectibles.values()).map(c => this.serializeCollectible(c))
     };
     this.broadcast(msg);
+    this.territoryDirty.clear();
   }
 
   private broadcastLeaderboard() {
