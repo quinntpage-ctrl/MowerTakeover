@@ -20,7 +20,10 @@ export class PlayerState {
   deathAlpha: number;
   deathReason: string;
   score: number;
+  lastNonZeroScore: number;
   finalScore: number;
+  spawnedAt: number;
+  finalSurvivalSeconds: number;
   takeovers: number;
   invincibleUntil: number;
   isBot: boolean;
@@ -43,7 +46,10 @@ export class PlayerState {
     this.deathAlpha = 1.0;
     this.deathReason = '';
     this.score = 0;
+    this.lastNonZeroScore = 0;
     this.finalScore = 0;
+    this.spawnedAt = Date.now();
+    this.finalSurvivalSeconds = 0;
     this.takeovers = 0;
     this.invincibleUntil = 0;
     this.isBot = isBot;
@@ -69,5 +75,8 @@ export class PlayerState {
 
   updateScore() {
     this.score = (this.territory.size / (GRID_SIZE * GRID_SIZE)) * 100;
+    if (this.score > 0) {
+      this.lastNonZeroScore = this.score;
+    }
   }
 }

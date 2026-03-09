@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
-import { Joystick, Flame, Star, Smile, Crown, Info, ArrowLeft, Crosshair, Skull, Shield } from "lucide-react";
+import { Joystick, Flame, Star, Smile, Crown, Info, ArrowLeft, Crosshair, Skull, Shield, Volume2, VolumeX } from "lucide-react";
 import { PLAYER_COLORS } from "@shared/game/Constants";
 import type { LeaderboardEntry } from "@shared/game/Protocol";
+import { soundEffects } from "@/lib/audio/sound";
 
 function GrassIcon({ className }: { className?: string }) {
   return (
@@ -33,6 +34,16 @@ function GrassIcon({ className }: { className?: string }) {
 const HOME_UPDATES = [
   {
     date: "Mar 9, 2026",
+    title: "Post-Match Recap",
+    description: "The game-over screen now preserves your captured percent, shows what took you out, and reports how long you survived.",
+  },
+  {
+    date: "Mar 9, 2026",
+    title: "Sound Effects",
+    description: "Buttons click, pickups have sounds, fireballs now have shoot and impact audio, and there is a mute toggle with no background music.",
+  },
+  {
+    date: "Mar 9, 2026",
     title: "Invincibility Drops",
     description: "Rare shield pickups now grant 8 seconds of invincibility and turn your trail into a rainbow road.",
   },
@@ -48,41 +59,128 @@ const HOME_UPDATES = [
   },
 ];
 
+function formatDeathReason(reason?: string) {
+  switch (reason) {
+    case "hit by a fireball!":
+      return "a fireball";
+    case "wall-collision":
+      return "the wall";
+    case "killed-by-other":
+      return "another mower crossing your trail";
+    case "all-territory-lost":
+      return "losing all your land";
+    case "self-collision":
+      return "your own trail";
+    default:
+      return "a wipeout";
+  }
+}
+
+function formatSurvivalTime(seconds: number) {
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  if (minutes === 0) {
+    return `${remainingSeconds}s`;
+  }
+
+  return `${minutes}m ${remainingSeconds.toString().padStart(2, "0")}s`;
+}
+
 export default function Home() {
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameover" | "tutorial" | "updates">("menu");
   const [playerName, setPlayerName] = useState("");
   const [score, setScore] = useState(0);
+  const [finalScore, setFinalScore] = useState(0);
+  const [deathReason, setDeathReason] = useState("");
+  const [survivedSeconds, setSurvivedSeconds] = useState(0);
   const [takeovers, setTakeovers] = useState(0);
   const [invincibleTimeLeft, setInvincibleTimeLeft] = useState(0);
   const [fireballs, setFireballs] = useState(0);
+  const [soundsMuted, setSoundsMuted] = useState(() => soundEffects.isMuted());
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
   const [trailType, setTrailType] = useState<"grass" | "flame" | "star" | "smile">("grass");
   const shootRef = useRef<(() => void) | null>(null);
+  const previousFireballsRef = useRef(0);
+  const previousInvincibleRef = useRef(0);
 
   const startGame = (e: React.FormEvent) => {
     e.preventDefault();
     if (!playerName.trim()) return;
+    soundEffects.playClick();
     setGameState("playing");
     setScore(0);
+    setFinalScore(0);
+    setDeathReason("");
+    setSurvivedSeconds(0);
     setTakeovers(0);
     setInvincibleTimeLeft(0);
+    setFireballs(0);
   };
 
-  const handleGameOver = (finalScore: number, reason?: string) => {
+  const handleGameOver = (nextFinalScore: number, reason?: string, nextSurvivedSeconds?: number) => {
     console.log("Game Over triggered. Reason:", reason);
-    setScore(finalScore);
+    setFinalScore(nextFinalScore);
+    setDeathReason(formatDeathReason(reason));
+    setSurvivedSeconds(nextSurvivedSeconds ?? 0);
     setGameState("gameover");
   };
 
+  const handleToggleSounds = () => {
+    const nextMuted = !soundsMuted;
+    soundEffects.setMuted(nextMuted);
+    setSoundsMuted(nextMuted);
+    if (!nextMuted) {
+      soundEffects.playClick();
+    }
+  };
+
+  useEffect(() => {
+    if (gameState !== "playing") {
+      previousFireballsRef.current = fireballs;
+      return;
+    }
+
+    if (fireballs > previousFireballsRef.current) {
+      soundEffects.playFireballPickup();
+    }
+    previousFireballsRef.current = fireballs;
+  }, [fireballs, gameState]);
+
+  useEffect(() => {
+    if (gameState !== "playing") {
+      soundEffects.syncInvincibilityTime(0);
+      previousInvincibleRef.current = invincibleTimeLeft;
+      return;
+    }
+
+    if (invincibleTimeLeft > previousInvincibleRef.current + 1) {
+      soundEffects.playInvincibilityPickup();
+    }
+    soundEffects.syncInvincibilityTime(invincibleTimeLeft);
+    previousInvincibleRef.current = invincibleTimeLeft;
+  }, [invincibleTimeLeft, gameState]);
+
   return (
     <div className="w-full h-full overflow-hidden bg-grass-pattern relative flex items-stretch justify-stretch md:items-center md:justify-center font-sans" style={{ height: '100dvh' }}>
+      <button
+        type="button"
+        onClick={handleToggleSounds}
+        className="absolute bottom-4 left-4 md:bottom-6 md:left-6 z-30 glass-panel rounded-full p-3 shadow-lg pointer-events-auto transition-transform active:scale-95"
+        aria-label={soundsMuted ? "Unmute sounds" : "Mute sounds"}
+        data-testid="button-toggle-sound"
+      >
+        {soundsMuted ? <VolumeX className="w-5 h-5 text-foreground" /> : <Volume2 className="w-5 h-5 text-foreground" />}
+      </button>
       
       {gameState === "playing" && (
         <GameCanvas 
           playerName={playerName} 
           playerColor={selectedColor}
           trailType={trailType}
+          fireballCount={fireballs}
           onGameOver={handleGameOver}
           onScoreUpdate={setScore}
           onTakeoversUpdate={setTakeovers}
@@ -197,13 +295,14 @@ export default function Home() {
       )}
 
       {gameState === "menu" && (
-        <div className="z-10 glass-panel w-full h-full overflow-y-auto custom-scrollbar p-3 rounded-none border-0 shadow-none animate-in fade-in zoom-in duration-500 md:p-8 md:rounded-3xl md:shadow-2xl md:max-w-md md:w-full md:h-auto md:mx-3 md:border-2 md:border-white/50 md:max-h-[92vh]">
-          <div className="text-center mb-2 md:mb-6 animate-float flex flex-col items-center">
-            <img src="/logo.svg" alt="Mower Logo" className="h-8 md:h-16 mb-1 md:mb-3 drop-shadow-lg" />
-            <p className="text-muted-foreground font-bold italic text-xs md:text-base">Capture the landscape. Claim your territory.</p>
-          </div>
+        <div className="z-10 glass-panel w-full h-full overflow-y-auto custom-scrollbar p-3 rounded-none border-0 shadow-none animate-in fade-in zoom-in duration-500 flex flex-col md:p-8 md:rounded-3xl md:shadow-2xl md:max-w-md md:w-full md:h-auto md:mx-3 md:border-2 md:border-white/50 md:max-h-[92vh] md:block">
+          <div className="w-full max-w-xs md:max-w-none mx-auto my-auto">
+            <div className="text-center mb-2 md:mb-6 animate-float flex flex-col items-center">
+              <img src="/logo.svg" alt="Mower Logo" className="h-8 md:h-16 mb-1 md:mb-3 drop-shadow-lg" />
+              <p className="text-muted-foreground font-bold italic text-xs md:text-base">Capture the landscape. Claim your territory.</p>
+            </div>
 
-          <form onSubmit={startGame} className="space-y-2 md:space-y-4">
+            <form onSubmit={startGame} className="space-y-2 md:space-y-4">
             <Input 
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
@@ -221,7 +320,10 @@ export default function Home() {
                   <button
                     key={color}
                     type="button"
-                    onClick={() => setSelectedColor(color)}
+                    onClick={() => {
+                      soundEffects.playClick();
+                      setSelectedColor(color);
+                    }}
                     className={`w-6 h-6 md:w-8 md:h-8 rounded-full transition-transform ${selectedColor === color ? 'scale-125 ring-3 ring-white shadow-lg' : 'hover:scale-110 shadow-sm'}`}
                     style={{ backgroundColor: color }}
                     aria-label={`Select color ${color}`}
@@ -235,7 +337,10 @@ export default function Home() {
               <div className="grid grid-cols-4 gap-1.5 md:gap-2">
                 <button
                   type="button"
-                  onClick={() => setTrailType("grass")}
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setTrailType("grass");
+                  }}
                   className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'grass' ? 'border-primary bg-primary/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
                   <GrassIcon className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'grass' ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -243,7 +348,10 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTrailType("flame")}
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setTrailType("flame");
+                  }}
                   className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'flame' ? 'border-orange-500 bg-orange-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
                   <Flame className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'flame' ? 'text-orange-500' : 'text-muted-foreground'}`} />
@@ -251,7 +359,10 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTrailType("star")}
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setTrailType("star");
+                  }}
                   className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'star' ? 'border-yellow-400 bg-yellow-400/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
                   <Star className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'star' ? 'text-yellow-400' : 'text-muted-foreground'}`} />
@@ -259,7 +370,10 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTrailType("smile")}
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setTrailType("smile");
+                  }}
                   className={`flex flex-col items-center gap-0.5 p-1.5 md:p-2 rounded-lg border-2 transition-all ${trailType === 'smile' ? 'border-blue-500 bg-blue-500/10' : 'border-border/50 bg-white/50 hover:bg-white/80'}`}
                 >
                   <Smile className={`w-4 h-4 md:w-5 md:h-5 ${trailType === 'smile' ? 'text-blue-500' : 'text-muted-foreground'}`} />
@@ -280,7 +394,10 @@ export default function Home() {
             <Button 
               type="button" 
               variant="outline"
-              onClick={() => setGameState("tutorial")}
+              onClick={() => {
+                soundEffects.playClick();
+                setGameState("tutorial");
+              }}
               className="w-full h-7 md:h-10 text-sm md:text-base font-bold rounded-lg md:rounded-xl shadow-sm border-2 border-primary/20 hover:border-primary/50 text-foreground/80 hover:text-foreground flex items-center justify-center gap-1.5 bg-white/50"
               data-testid="button-tutorial"
             >
@@ -291,23 +408,27 @@ export default function Home() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setGameState("updates")}
+              onClick={() => {
+                soundEffects.playClick();
+                setGameState("updates");
+              }}
               className="w-full h-7 md:h-10 text-sm md:text-base font-bold rounded-lg md:rounded-xl shadow-sm border-2 border-primary/20 hover:border-primary/50 text-foreground/80 hover:text-foreground flex items-center justify-center gap-1.5 bg-white/50"
               data-testid="button-updates"
             >
               <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500" />
               Latest Updates
             </Button>
-          </form>
+            </form>
 
-          <div className="mt-2 md:mt-5 flex justify-center gap-3 text-[10px] md:text-xs text-muted-foreground/80 font-bold">
-            <div className="flex items-center gap-1">
-              <kbd className="bg-white/50 px-1 py-0.5 rounded shadow-sm border border-white text-[10px]">WASD</kbd>
-              <span>Desktop</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <kbd className="bg-white/50 px-1 py-0.5 rounded shadow-sm border border-white text-[10px]">Swipe</kbd>
-              <span>Mobile</span>
+            <div className="mt-2 md:mt-5 flex justify-center gap-3 text-[10px] md:text-xs text-muted-foreground/80 font-bold">
+              <div className="flex items-center gap-1">
+                <kbd className="bg-white/50 px-1 py-0.5 rounded shadow-sm border border-white text-[10px]">WASD</kbd>
+                <span>Desktop</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <kbd className="bg-white/50 px-1 py-0.5 rounded shadow-sm border border-white text-[10px]">Swipe</kbd>
+                <span>Mobile</span>
+              </div>
             </div>
           </div>
         </div>
@@ -317,7 +438,10 @@ export default function Home() {
         <div className="z-10 glass-panel w-full h-full overflow-y-auto custom-scrollbar p-4 rounded-none border-0 shadow-none animate-in fade-in zoom-in duration-300 md:p-10 md:rounded-3xl md:shadow-2xl md:max-w-lg md:w-full md:h-auto md:mx-4 md:border-2 md:border-white/50 md:max-h-[90vh]">
           <div className="flex items-center mb-4 md:mb-6 relative">
             <button 
-              onClick={() => setGameState("menu")}
+              onClick={() => {
+                soundEffects.playClick();
+                setGameState("menu");
+              }}
               className="absolute left-0 p-1.5 md:p-2 rounded-full hover:bg-black/5 transition-colors"
               aria-label="Back to menu"
             >
@@ -379,7 +503,10 @@ export default function Home() {
           </div>
 
           <Button 
-            onClick={() => setGameState("menu")}
+            onClick={() => {
+              soundEffects.playClick();
+              setGameState("menu");
+            }}
             className="w-full h-11 md:h-14 text-lg md:text-xl font-display rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90 mt-4 md:mt-8"
           >
             Got it!
@@ -391,7 +518,10 @@ export default function Home() {
         <div className="z-10 glass-panel w-full h-full overflow-y-auto custom-scrollbar p-4 rounded-none border-0 shadow-none animate-in fade-in zoom-in duration-300 md:p-10 md:rounded-3xl md:shadow-2xl md:max-w-lg md:w-full md:h-auto md:mx-4 md:border-2 md:border-white/50 md:max-h-[90vh]">
           <div className="flex items-center mb-4 md:mb-6 relative">
             <button 
-              onClick={() => setGameState("menu")}
+              onClick={() => {
+                soundEffects.playClick();
+                setGameState("menu");
+              }}
               className="absolute left-0 p-1.5 md:p-2 rounded-full hover:bg-black/5 transition-colors"
               aria-label="Back to menu"
             >
@@ -418,7 +548,10 @@ export default function Home() {
           </div>
 
           <Button 
-            onClick={() => setGameState("menu")}
+            onClick={() => {
+              soundEffects.playClick();
+              setGameState("menu");
+            }}
             className="w-full h-11 md:h-14 text-lg md:text-xl font-display rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90 mt-4 md:mt-8"
           >
             Back to Menu
@@ -429,7 +562,9 @@ export default function Home() {
       {gameState === "gameover" && (
         <div className="z-10 glass-panel w-full h-full overflow-y-auto p-5 rounded-none border-0 shadow-none animate-in slide-in-from-bottom-8 duration-500 text-center md:p-12 md:rounded-3xl md:shadow-2xl md:max-w-md md:w-full md:h-auto md:mx-4 md:border-2 md:border-white/50">
           <h2 className="text-3xl md:text-5xl font-display text-destructive mb-1 md:mb-2">Wasted!</h2>
-          <p className="text-lg md:text-xl text-foreground font-bold mb-4 md:mb-6">You captured <span className="text-primary text-2xl md:text-3xl font-display ml-1">{score.toFixed(1)}%</span></p>
+          <p className="text-lg md:text-xl text-foreground font-bold mb-2">You captured <span className="text-primary text-2xl md:text-3xl font-display ml-1">{finalScore.toFixed(1)}%</span></p>
+          <p className="text-sm md:text-lg text-foreground font-bold mb-1 md:mb-2">You survived <span className="text-primary font-display ml-1">{formatSurvivalTime(survivedSeconds)}</span></p>
+          <p className="text-xs md:text-sm uppercase tracking-[0.2em] text-muted-foreground mb-4 md:mb-6">Killed by {deathReason}</p>
           <p className="text-sm md:text-lg text-foreground font-bold mb-4 md:mb-6 flex items-center justify-center gap-2">
             <Skull className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
             <span>{takeovers} takeovers</span>
@@ -444,7 +579,10 @@ export default function Home() {
           </div>
 
           <Button 
-            onClick={() => setGameState("menu")}
+            onClick={() => {
+              soundEffects.playClick();
+              setGameState("menu");
+            }}
             className="w-full h-11 md:h-14 text-lg md:text-xl font-display rounded-xl md:rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-primary hover:bg-primary/90"
             data-testid="button-play-again"
           >

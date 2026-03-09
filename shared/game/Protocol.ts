@@ -54,7 +54,8 @@ export type ServerMessage =
   | { type: 'welcome'; playerId: string; state: GameStateSnapshot }
   | { type: 'state'; players: PlayerData[]; fireballs: FireballData[]; collectibles: CollectibleData[] }
   | { type: 'leaderboard'; board: LeaderboardEntry[] }
-  | { type: 'gameOver'; score: number; reason: string }
+  | { type: 'gameOver'; score: number; reason: string; survivedSeconds: number }
+  | { type: 'fireballImpact'; impact: 'land'; x: number; y: number }
   | { type: 'kill'; playerId: string; reason: string };
 
 export interface GameStateSnapshot {

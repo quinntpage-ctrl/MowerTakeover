@@ -2,12 +2,14 @@ import { useEffect, useRef } from 'react';
 import { GameEngine } from '@/lib/game/Engine';
 import type { ServerMessage, ClientMessage, LeaderboardEntry } from '@shared/game/Protocol';
 import type { Direction } from '@shared/game/Constants';
+import { soundEffects } from '@/lib/audio/sound';
 
 interface GameCanvasProps {
   playerName: string;
   playerColor?: string;
   trailType?: "grass" | "flame" | "star" | "smile";
-  onGameOver: (score: number, reason?: string) => void;
+  fireballCount?: number;
+  onGameOver: (score: number, reason?: string, survivedSeconds?: number) => void;
   onScoreUpdate: (score: number) => void;
   onTakeoversUpdate?: (count: number) => void;
   onInvincibilityUpdate?: (seconds: number) => void;
@@ -20,6 +22,7 @@ export default function GameCanvas({
   playerName,
   playerColor,
   trailType,
+  fireballCount = 0,
   onGameOver,
   onScoreUpdate,
   onTakeoversUpdate,
@@ -31,6 +34,7 @@ export default function GameCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const fireballCountRef = useRef(fireballCount);
   const callbacksRef = useRef({ onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onLeaderboardUpdate, onFireballsUpdate });
 
   useEffect(() => {
@@ -38,12 +42,16 @@ export default function GameCanvas({
   }, [onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onLeaderboardUpdate, onFireballsUpdate]);
 
   useEffect(() => {
+    fireballCountRef.current = fireballCount;
+  }, [fireballCount]);
+
+  useEffect(() => {
     if (!canvasRef.current) return;
 
     const engine = new GameEngine(
       canvasRef.current,
       {
-        onGameOver: (score, reason) => callbacksRef.current.onGameOver(score, reason),
+        onGameOver: (score, reason, survivedSeconds) => callbacksRef.current.onGameOver(score, reason, survivedSeconds),
         onScoreUpdate: (score) => callbacksRef.current.onScoreUpdate(score),
         onTakeoversUpdate: (count) => callbacksRef.current.onTakeoversUpdate?.(count),
         onInvincibilityUpdate: (seconds) => callbacksRef.current.onInvincibilityUpdate?.(seconds),
@@ -91,10 +99,19 @@ export default function GameCanvas({
             break;
 
           case 'gameOver':
-            callbacksRef.current.onGameOver(msg.score, msg.reason);
+            callbacksRef.current.onGameOver(msg.score, msg.reason, msg.survivedSeconds);
+            break;
+
+          case 'fireballImpact':
+            if (msg.impact === 'land') {
+              soundEffects.playFireballImpact();
+            }
             break;
 
           case 'kill':
+            if (msg.reason === 'hit by a fireball!') {
+              soundEffects.playFireballKill();
+            }
             break;
         }
       } catch (e) {
@@ -121,6 +138,9 @@ export default function GameCanvas({
       if (ws.readyState === WebSocket.OPEN) {
         const msg: ClientMessage = { type: 'shoot' };
         ws.send(JSON.stringify(msg));
+        if (fireballCountRef.current > 0) {
+          soundEffects.playFireballShoot();
+        }
       }
     };
 
@@ -213,7 +233,7 @@ export default function GameCanvas({
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [playerName]);
+  }, [playerName, playerColor, trailType]);
 
   return (
     <canvas

@@ -3,7 +3,7 @@ import { GRID_SIZE, CELL_SIZE, WORLD_WIDTH, WORLD_HEIGHT, Direction, PLAYER_SPEE
 import type { Point } from '@shared/game/Player';
 
 interface GameCallbacks {
-  onGameOver: (score: number, reason?: string) => void;
+  onGameOver: (score: number, reason?: string, survivedSeconds?: number) => void;
   onScoreUpdate: (score: number) => void;
   onTakeoversUpdate?: (count: number) => void;
   onInvincibilityUpdate?: (seconds: number) => void;

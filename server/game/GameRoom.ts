@@ -173,6 +173,7 @@ export class GameRoom {
 
       let hitEnemy = false;
       let explode = false;
+      let hitLand = false;
 
       this.players.forEach(p => {
         if (p.id !== fb.ownerId && !p.isDead) {
@@ -193,6 +194,7 @@ export class GameRoom {
           if (p.id !== fb.ownerId && p.territory.has(key)) {
             hitEnemy = true;
             explode = true;
+            hitLand = true;
           }
         });
       }
@@ -212,6 +214,10 @@ export class GameRoom {
           this.players.forEach(p => {
             if (p.id !== fb.ownerId) p.updateScore();
           });
+
+          if (hitLand) {
+            this.broadcast({ type: 'fireballImpact', impact: 'land', x: fb.x, y: fb.y });
+          }
         }
         fb.life = 0;
       }
@@ -262,7 +268,12 @@ export class GameRoom {
             p.deathAlpha = -2;
             const conn = this.connections.get(p.id);
             if (conn) {
-              const msg: ServerMessage = { type: 'gameOver', score: p.finalScore, reason: p.deathReason };
+              const msg: ServerMessage = {
+                type: 'gameOver',
+                score: p.finalScore,
+                reason: p.deathReason,
+                survivedSeconds: p.finalSurvivalSeconds,
+              };
               this.sendToPlayer(p.id, msg);
             }
           } else {
@@ -572,7 +583,11 @@ export class GameRoom {
   private respawnBot(p: PlayerState) {
     p.isDead = false;
     p.deathAlpha = 1.0;
+    p.deathReason = '';
+    p.finalScore = 0;
+    p.finalSurvivalSeconds = 0;
     p.invincibleUntil = 0;
+    p.spawnedAt = Date.now();
 
     const { x, y } = this.findSpawnLocation();
     p.x = x;
@@ -652,15 +667,17 @@ export class GameRoom {
     if (!p || p.isDead) return;
     if (this.isInvincibilityProtected(p, reason)) return;
 
+    p.updateScore();
+    p.finalScore = p.score > 0 ? p.score : p.lastNonZeroScore;
+    p.finalSurvivalSeconds = Math.max(0, (Date.now() - p.spawnedAt) / 1000);
+
     if (killerId && killerId !== pid) {
       const killer = this.players.get(killerId);
-      if (killer) {
+      if (killer && !killer.isDead) {
         killer.takeovers++;
       }
     }
 
-    p.updateScore();
-    p.finalScore = p.score;
     p.invincibleUntil = 0;
     p.isDead = true;
     p.deathAlpha = 1.0;
@@ -669,7 +686,6 @@ export class GameRoom {
 
     this.broadcast({ type: 'kill', playerId: pid, reason });
   }
-
   private spawnBots(count: number) {
     for (let i = 0; i < count; i++) {
       const botId = `bot_${i}`;
