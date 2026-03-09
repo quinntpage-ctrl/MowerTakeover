@@ -6,6 +6,7 @@ interface GameCallbacks {
   onGameOver: (score: number, reason?: string) => void;
   onScoreUpdate: (score: number) => void;
   onTakeoversUpdate?: (count: number) => void;
+  onInvincibilityUpdate?: (seconds: number) => void;
   onLeaderboardUpdate: (board: LeaderboardEntry[]) => void;
   onFireballsUpdate?: (count: number) => void;
 }
@@ -56,6 +57,8 @@ export class GameEngine {
   private logoImage: HTMLImageElement;
 
   private displayPositions: Map<string, { x: number; y: number }> = new Map();
+  private fireballDisplayPositions: Map<string, { x: number; y: number }> = new Map();
+  private fireballSnapshots: Map<string, { x: number; y: number; vx: number; vy: number; receivedAt: number }> = new Map();
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks) {
     this.canvas = canvas;
@@ -73,6 +76,8 @@ export class GameEngine {
   }
 
   applyState(players: PlayerData[], fireballs: FireballData[], collectibles: CollectibleData[]) {
+    const snapshotTime = performance.now();
+
     for (const p of players) {
       const prevTerrSet = this.prevTerritories.get(p.id);
       const newTerrSet = new Set(p.territory);
@@ -105,6 +110,31 @@ export class GameEngine {
       }
     });
 
+    const currentFireballIds = new Set(fireballs.map(fb => fb.id));
+    for (const fb of fireballs) {
+      this.fireballSnapshots.set(fb.id, {
+        x: fb.x,
+        y: fb.y,
+        vx: fb.vx,
+        vy: fb.vy,
+        receivedAt: snapshotTime,
+      });
+
+      if (!this.fireballDisplayPositions.has(fb.id)) {
+        this.fireballDisplayPositions.set(fb.id, { x: fb.x, y: fb.y });
+      }
+    }
+    this.fireballSnapshots.forEach((_snapshot, id) => {
+      if (!currentFireballIds.has(id)) {
+        this.fireballSnapshots.delete(id);
+      }
+    });
+    this.fireballDisplayPositions.forEach((_position, id) => {
+      if (!currentFireballIds.has(id)) {
+        this.fireballDisplayPositions.delete(id);
+      }
+    });
+
     this.players = players;
     this.fireballs = fireballs;
     this.collectibles = collectibles;
@@ -113,6 +143,7 @@ export class GameEngine {
     if (localP) {
       this.callbacks.onScoreUpdate(localP.score);
       this.callbacks.onTakeoversUpdate?.(localP.takeovers);
+      this.callbacks.onInvincibilityUpdate?.(localP.invincibleTimeLeft);
       this.callbacks.onFireballsUpdate?.(localP.fireballs);
     }
 
@@ -213,6 +244,14 @@ export class GameEngine {
       }
     }
 
+    for (const fb of this.fireballs) {
+      const displayPos = this.fireballDisplayPositions.get(fb.id);
+      const snapshot = this.fireballSnapshots.get(fb.id);
+      if (displayPos && snapshot) {
+        this.updateFireballDisplayPosition(displayPos, snapshot, dt);
+      }
+    }
+
     const localP = this.players.find(p => p.id === this.localPlayerId);
     if (localP) {
       const dp = this.displayPositions.get(localP.id);
@@ -293,6 +332,109 @@ export class GameEngine {
     const dp = this.displayPositions.get(p.id);
     if (!dp) return { x: p.x, y: p.y, direction: p.direction };
     return { x: dp.x, y: dp.y, direction: p.direction };
+  }
+
+  private updateFireballDisplayPosition(
+    displayPos: { x: number; y: number },
+    snapshot: { x: number; y: number; vx: number; vy: number; receivedAt: number },
+    dt: number
+  ) {
+    const elapsedSinceSnapshot = Math.min(Math.max(0, (this.lastTimestamp - snapshot.receivedAt) / 1000), 2 / TICK_RATE);
+    const targetX = Math.max(0, Math.min(WORLD_WIDTH, snapshot.x + snapshot.vx * elapsedSinceSnapshot));
+    const targetY = Math.max(0, Math.min(WORLD_HEIGHT, snapshot.y + snapshot.vy * elapsedSinceSnapshot));
+
+    displayPos.x += snapshot.vx * dt;
+    displayPos.y += snapshot.vy * dt;
+
+    const dx = targetX - displayPos.x;
+    const dy = targetY - displayPos.y;
+
+    if (Math.hypot(dx, dy) > CELL_SIZE) {
+      displayPos.x = targetX;
+      displayPos.y = targetY;
+      return;
+    }
+
+    const correction = 1 - Math.pow(0.0001, dt);
+    displayPos.x += dx * correction;
+    displayPos.y += dy * correction;
+  }
+
+  private getDisplayFireballPos(fb: FireballData): { x: number; y: number } {
+    const displayPos = this.fireballDisplayPositions.get(fb.id);
+    if (!displayPos) return { x: fb.x, y: fb.y };
+    return displayPos;
+  }
+
+  private buildTrailPath(p: PlayerData, ip: { x: number; y: number; direction: Direction }): Path2D | null {
+    if (p.trail.length === 0) return null;
+
+    const path = new Path2D();
+    for (let i = 0; i < p.trail.length; i++) {
+      const cell = p.trail[i];
+      let tcx = cell.x * CELL_SIZE + CELL_SIZE / 2;
+      let tcy = cell.y * CELL_SIZE + CELL_SIZE / 2;
+
+      if (i === p.trail.length - 1) {
+        if (ip.direction === 'RIGHT' && tcx > ip.x) tcx = ip.x;
+        if (ip.direction === 'LEFT' && tcx < ip.x) tcx = ip.x;
+        if (ip.direction === 'DOWN' && tcy > ip.y) tcy = ip.y;
+        if (ip.direction === 'UP' && tcy < ip.y) tcy = ip.y;
+      }
+
+      if (i === 0) {
+        let sx = tcx;
+        let sy = tcy;
+        const terrSet = new Set(p.territory);
+        if (terrSet.has(`${cell.x - 1},${cell.y}`)) sx -= CELL_SIZE;
+        else if (terrSet.has(`${cell.x + 1},${cell.y}`)) sx += CELL_SIZE;
+        else if (terrSet.has(`${cell.x},${cell.y - 1}`)) sy -= CELL_SIZE;
+        else if (terrSet.has(`${cell.x},${cell.y + 1}`)) sy += CELL_SIZE;
+        path.moveTo(sx, sy);
+      }
+
+      path.lineTo(tcx, tcy);
+    }
+
+    path.lineTo(ip.x, ip.y);
+    return path;
+  }
+
+  private drawStandardTrail(path: Path2D, color: string) {
+    this.ctx.strokeStyle = color + 'AA';
+    this.ctx.lineWidth = CELL_SIZE * 0.8;
+    this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
+    this.ctx.setLineDash([]);
+    this.ctx.lineDashOffset = 0;
+    this.ctx.stroke(path);
+  }
+
+  private drawRainbowTrail(path: Path2D) {
+    const colors = ['#ff3b30', '#ff9500', '#ffd60a', '#34c759', '#32ade6', '#5856d6', '#ff2d92'];
+    const segment = 18;
+    const cycle = segment * colors.length;
+    const offset = (this.lastTimestamp / 35) % cycle;
+
+    this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
+
+    this.ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    this.ctx.lineWidth = CELL_SIZE * 0.92;
+    this.ctx.setLineDash([]);
+    this.ctx.lineDashOffset = 0;
+    this.ctx.stroke(path);
+
+    for (let i = 0; i < colors.length; i++) {
+      this.ctx.strokeStyle = colors[i];
+      this.ctx.lineWidth = CELL_SIZE * 0.62;
+      this.ctx.setLineDash([segment, cycle - segment]);
+      this.ctx.lineDashOffset = -(offset + i * segment);
+      this.ctx.stroke(path);
+    }
+
+    this.ctx.setLineDash([]);
+    this.ctx.lineDashOffset = 0;
   }
 
   private updateEffects(dt: number) {
@@ -443,6 +585,27 @@ export class GameEngine {
           this.ctx.beginPath();
           this.ctx.arc(0, 0, 4, 0, Math.PI * 2);
           this.ctx.fill();
+        } else {
+          this.ctx.shadowColor = '#38bdf8';
+          this.ctx.shadowBlur = 18;
+
+          this.ctx.strokeStyle = '#e0f2fe';
+          this.ctx.lineWidth = 3;
+          this.ctx.beginPath();
+          this.ctx.arc(0, 0, 10, 0, Math.PI * 2);
+          this.ctx.stroke();
+
+          this.ctx.fillStyle = '#38bdf8';
+          this.ctx.beginPath();
+          this.ctx.arc(0, 0, 6, 0, Math.PI * 2);
+          this.ctx.fill();
+
+          this.ctx.strokeStyle = '#f8fafc';
+          this.ctx.lineWidth = 2;
+          this.ctx.beginPath();
+          this.ctx.moveTo(0, -7);
+          this.ctx.lineTo(0, 7);
+          this.ctx.stroke();
         }
 
         this.ctx.restore();
@@ -482,38 +645,11 @@ export class GameEngine {
 
       this.ctx.fillStyle = p.color + 'AA';
       if (p.trail.length > 0) {
-        this.ctx.beginPath();
-        for (let i = 0; i < p.trail.length; i++) {
-          const cell = p.trail[i];
-          let tcx = cell.x * CELL_SIZE + CELL_SIZE / 2;
-          let tcy = cell.y * CELL_SIZE + CELL_SIZE / 2;
-
-          if (i === p.trail.length - 1) {
-            if (ip.direction === 'RIGHT' && tcx > ip.x) tcx = ip.x;
-            if (ip.direction === 'LEFT' && tcx < ip.x) tcx = ip.x;
-            if (ip.direction === 'DOWN' && tcy > ip.y) tcy = ip.y;
-            if (ip.direction === 'UP' && tcy < ip.y) tcy = ip.y;
-          }
-
-          if (i === 0) {
-            let sx = tcx, sy = tcy;
-            const terrSet = new Set(p.territory);
-            if (terrSet.has(`${cell.x - 1},${cell.y}`)) sx -= CELL_SIZE;
-            else if (terrSet.has(`${cell.x + 1},${cell.y}`)) sx += CELL_SIZE;
-            else if (terrSet.has(`${cell.x},${cell.y - 1}`)) sy -= CELL_SIZE;
-            else if (terrSet.has(`${cell.x},${cell.y + 1}`)) sy += CELL_SIZE;
-            this.ctx.moveTo(sx, sy);
-          }
-
-          this.ctx.lineTo(tcx, tcy);
+        const trailPath = this.buildTrailPath(p, ip);
+        if (trailPath) {
+          if (p.invincibleTimeLeft > 0) this.drawRainbowTrail(trailPath);
+          else this.drawStandardTrail(trailPath, p.color);
         }
-
-        this.ctx.lineTo(ip.x, ip.y);
-        this.ctx.strokeStyle = p.color + 'AA';
-        this.ctx.lineWidth = CELL_SIZE * 0.8;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
-        this.ctx.stroke();
       }
 
       this.ctx.save();
@@ -521,6 +657,17 @@ export class GameEngine {
       if (ip.direction === 'RIGHT') this.ctx.rotate(Math.PI / 2);
       else if (ip.direction === 'DOWN') this.ctx.rotate(Math.PI);
       else if (ip.direction === 'LEFT') this.ctx.rotate(-Math.PI / 2);
+
+      if (p.invincibleTimeLeft > 0) {
+        this.ctx.strokeStyle = '#38bdf8';
+        this.ctx.lineWidth = 4;
+        this.ctx.shadowColor = '#38bdf8';
+        this.ctx.shadowBlur = 14;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        this.ctx.stroke();
+        this.ctx.shadowBlur = 0;
+      }
 
       this.ctx.fillStyle = p.color;
       this.ctx.beginPath();
@@ -602,9 +749,10 @@ export class GameEngine {
     });
 
     this.fireballs.forEach(fb => {
-      if (fb.x >= startX && fb.x <= endX && fb.y >= startY && fb.y <= endY) {
+      const displayPos = this.getDisplayFireballPos(fb);
+      if (displayPos.x >= startX && displayPos.x <= endX && displayPos.y >= startY && displayPos.y <= endY) {
         this.ctx.save();
-        this.ctx.translate(fb.x, fb.y);
+        this.ctx.translate(displayPos.x, displayPos.y);
 
         this.ctx.shadowColor = '#f97316';
         this.ctx.shadowBlur = 10;
@@ -623,8 +771,8 @@ export class GameEngine {
 
         if (Math.random() < 0.5) {
           this.particles.push({
-            x: fb.x + (Math.random() - 0.5) * 10,
-            y: fb.y + (Math.random() - 0.5) * 10,
+            x: displayPos.x + (Math.random() - 0.5) * 10,
+            y: displayPos.y + (Math.random() - 0.5) * 10,
             vx: (Math.random() - 0.5) * 20,
             vy: -20 - Math.random() * 20,
             life: Math.random() * 0.3 + 0.2,

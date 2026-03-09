@@ -22,6 +22,7 @@ export class PlayerState {
   score: number;
   finalScore: number;
   takeovers: number;
+  invincibleUntil: number;
   isBot: boolean;
   trailType: TrailType;
   rank: number;
@@ -44,6 +45,7 @@ export class PlayerState {
     this.score = 0;
     this.finalScore = 0;
     this.takeovers = 0;
+    this.invincibleUntil = 0;
     this.isBot = isBot;
     this.trailType = trailType;
     this.rank = 0;

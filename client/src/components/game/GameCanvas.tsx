@@ -10,6 +10,7 @@ interface GameCanvasProps {
   onGameOver: (score: number, reason?: string) => void;
   onScoreUpdate: (score: number) => void;
   onTakeoversUpdate?: (count: number) => void;
+  onInvincibilityUpdate?: (seconds: number) => void;
   onLeaderboardUpdate: (leaderboard: LeaderboardEntry[]) => void;
   onFireballsUpdate?: (count: number) => void;
   shootRef?: React.MutableRefObject<(() => void) | null>;
@@ -22,6 +23,7 @@ export default function GameCanvas({
   onGameOver,
   onScoreUpdate,
   onTakeoversUpdate,
+  onInvincibilityUpdate,
   onLeaderboardUpdate,
   onFireballsUpdate,
   shootRef
@@ -29,11 +31,11 @@ export default function GameCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const callbacksRef = useRef({ onGameOver, onScoreUpdate, onTakeoversUpdate, onLeaderboardUpdate, onFireballsUpdate });
+  const callbacksRef = useRef({ onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onLeaderboardUpdate, onFireballsUpdate });
 
   useEffect(() => {
-    callbacksRef.current = { onGameOver, onScoreUpdate, onTakeoversUpdate, onLeaderboardUpdate, onFireballsUpdate };
-  }, [onGameOver, onScoreUpdate, onTakeoversUpdate, onLeaderboardUpdate, onFireballsUpdate]);
+    callbacksRef.current = { onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onLeaderboardUpdate, onFireballsUpdate };
+  }, [onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onLeaderboardUpdate, onFireballsUpdate]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -44,6 +46,7 @@ export default function GameCanvas({
         onGameOver: (score, reason) => callbacksRef.current.onGameOver(score, reason),
         onScoreUpdate: (score) => callbacksRef.current.onScoreUpdate(score),
         onTakeoversUpdate: (count) => callbacksRef.current.onTakeoversUpdate?.(count),
+        onInvincibilityUpdate: (seconds) => callbacksRef.current.onInvincibilityUpdate?.(seconds),
         onLeaderboardUpdate: (board) => callbacksRef.current.onLeaderboardUpdate(board),
         onFireballsUpdate: (count) => callbacksRef.current.onFireballsUpdate?.(count)
       }

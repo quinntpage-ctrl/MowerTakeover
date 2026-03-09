@@ -10,6 +10,8 @@ export const FIREBALL_LIFETIME = 3.0;
 export const FIREBALL_HIT_RADIUS = 20;
 export const COLLECTIBLE_PICKUP_RADIUS = 20;
 export const EXPLOSION_RADIUS = 2;
+export const INVINCIBILITY_DURATION = 8;
+export const INVINCIBILITY_RESPAWN_DELAY = 12;
 
 export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 export type TrailType = 'grass' | 'flame' | 'star' | 'smile';

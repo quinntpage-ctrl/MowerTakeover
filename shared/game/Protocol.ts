@@ -14,6 +14,7 @@ export interface PlayerData {
   deathAlpha: number;
   score: number;
   takeovers: number;
+  invincibleTimeLeft: number;
   fireballs: number;
   trailType: TrailType;
   isBot: boolean;
@@ -33,7 +34,7 @@ export interface CollectibleData {
   id: string;
   x: number;
   y: number;
-  type: 'fireball';
+  type: 'fireball' | 'invincibility';
 }
 
 export interface LeaderboardEntry {

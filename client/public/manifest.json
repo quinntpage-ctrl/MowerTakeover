@@ -1,6 +1,6 @@
 {
-  "name": "Mower.io",
-  "short_name": "Mower.io",
+  "name": "Mower Takeover",
+  "short_name": "Mower Takeover",
   "description": "A Splix.io style territory capture game with lawn mowers.",
   "start_url": "/",
   "display": "standalone",
@@ -8,14 +8,9 @@
   "theme_color": "#22c55e",
   "icons": [
     {
-      "src": "/favicon.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/favicon.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }
