@@ -50,7 +50,7 @@ export default function Home() {
 
       {gameState === "playing" && (
         <div 
-          className="absolute top-16 md:top-4 right-2 md:right-4 glass-panel rounded-xl p-2 md:p-4 w-40 md:w-56 shadow-lg z-10 max-h-[20vh] md:max-h-[60vh] flex flex-col pointer-events-auto"
+          className="absolute top-2 md:top-4 right-2 md:right-4 glass-panel rounded-xl p-2 md:p-4 w-40 md:w-56 shadow-lg z-10 max-h-[20vh] md:max-h-[60vh] flex flex-col pointer-events-auto"
           style={{ touchAction: 'pan-y' }}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -114,6 +114,9 @@ export default function Home() {
                             {fireballs}
                         </span>
                     </div>
+                    <span className="max-w-[110px] text-[10px] font-bold leading-tight text-foreground/80 md:hidden">
+                        Tap the orange shoot button to fire
+                    </span>
                     <span className="text-xs md:text-sm font-bold text-foreground hidden md:inline">
                         Press <kbd className="bg-white/50 px-1.5 py-0.5 rounded border border-border/50 mx-1 shadow-sm text-xs font-mono">SPACE</kbd> to shoot!
                     </span>

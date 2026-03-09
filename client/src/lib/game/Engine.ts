@@ -1,5 +1,5 @@
 import type { PlayerData, FireballData, CollectibleData, LeaderboardEntry } from '@shared/game/Protocol';
-import { GRID_SIZE, CELL_SIZE, WORLD_WIDTH, WORLD_HEIGHT, Direction } from '@shared/game/Constants';
+import { GRID_SIZE, CELL_SIZE, WORLD_WIDTH, WORLD_HEIGHT, Direction, PLAYER_SPEED, TICK_RATE } from '@shared/game/Constants';
 import type { Point } from '@shared/game/Player';
 
 interface GameCallbacks {
@@ -206,12 +206,10 @@ export class GameEngine {
     const dt = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
     this.lastTimestamp = timestamp;
 
-    const smoothing = 1 - Math.pow(0.00001, dt);
     for (const p of this.players) {
       const dp = this.displayPositions.get(p.id);
       if (dp) {
-        dp.x += (p.x - dp.x) * smoothing;
-        dp.y += (p.y - dp.y) * smoothing;
+        this.updateDisplayPosition(dp, p, dt);
       }
     }
 
@@ -219,6 +217,7 @@ export class GameEngine {
     if (localP) {
       const dp = this.displayPositions.get(localP.id);
       if (dp) {
+        const smoothing = 1 - Math.pow(0.00001, dt);
         this.camera.x += (dp.x - this.camera.x) * smoothing;
         this.camera.y += (dp.y - this.camera.y) * smoothing;
       }
@@ -227,6 +226,67 @@ export class GameEngine {
     this.updateEffects(dt);
     this.draw();
     this.animationFrameId = requestAnimationFrame(this.renderLoop);
+  }
+
+  private updateDisplayPosition(dp: { x: number; y: number }, p: PlayerData, dt: number) {
+    const leadDistance = PLAYER_SPEED / TICK_RATE;
+    let targetX = p.x;
+    let targetY = p.y;
+
+    if (!p.isDead) {
+      if (p.direction === 'UP') targetY -= leadDistance;
+      else if (p.direction === 'DOWN') targetY += leadDistance;
+      else if (p.direction === 'LEFT') targetX -= leadDistance;
+      else targetX += leadDistance;
+    }
+
+    targetX = Math.max(0, Math.min(WORLD_WIDTH - 0.001, targetX));
+    targetY = Math.max(0, Math.min(WORLD_HEIGHT - 0.001, targetY));
+
+    const dx = p.x - dp.x;
+    const dy = p.y - dp.y;
+
+    // Snap on large corrections like respawns or reconnects.
+    if (Math.hypot(dx, dy) > CELL_SIZE * 1.5) {
+      dp.x = p.x;
+      dp.y = p.y;
+      return;
+    }
+
+    const correction = 1 - Math.pow(0.001, dt);
+    if (p.isDead) {
+      dp.x += dx * correction;
+      dp.y += dy * correction;
+      return;
+    }
+
+    const step = PLAYER_SPEED * dt;
+    const axisLock = 1 - Math.pow(0.0000000001, dt);
+
+    if (p.direction === 'UP') {
+      dp.y -= step;
+      dp.y += (targetY - dp.y) * correction;
+      dp.x += dx * axisLock;
+      return;
+    }
+
+    if (p.direction === 'DOWN') {
+      dp.y += step;
+      dp.y += (targetY - dp.y) * correction;
+      dp.x += dx * axisLock;
+      return;
+    }
+
+    if (p.direction === 'LEFT') {
+      dp.x -= step;
+      dp.x += (targetX - dp.x) * correction;
+      dp.y += dy * axisLock;
+      return;
+    }
+
+    dp.x += step;
+    dp.x += (targetX - dp.x) * correction;
+    dp.y += dy * axisLock;
   }
 
   private getDisplayPos(p: PlayerData): { x: number; y: number; direction: Direction } {
