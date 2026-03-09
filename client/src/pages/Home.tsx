@@ -65,9 +65,10 @@ function BananaIcon({ className }: { className?: string }) {
       className={className}
       aria-hidden="true"
     >
-      <path d="M8.5 5.5c-.9 3.8.4 8 3.4 11s7.2 4.3 11 3.4" />
-      <path d="M7.2 8.5c-.9.5-1.8 1.7-2.2 3-.4 1.2-.3 2.4.2 3.2.8 1.5 2.5 2.4 4.6 2.4 3.5 0 7.8-2.4 10.3-6.2" />
-      <path d="M7.6 5.4c.7-.7 1.6-1 2.6-.9" />
+      <path d="M7.8 5.3c.2 2.4 1 4.7 2.4 6.8 1.8 2.7 4.4 4.9 7.3 6.2 1.8.8 3.3 1 4.7.5" />
+      <path d="M6.4 7.4c-.6 1.6-.6 3.3 0 4.8.7 1.7 2 3.2 3.9 4.2 2.3 1.4 5 1.8 7.3 1.1 1.5-.4 2.8-1.2 4-2.4" />
+      <path d="M7.2 5.1c.8-.3 1.7-.2 2.4.3" />
+      <path d="M21 15.1c.2.7.2 1.5-.2 2.1" />
     </svg>
   );
 }
@@ -105,6 +106,11 @@ function getTrailLabel(trailType: TrailType) {
 }
 
 const HOME_UPDATES = [
+  {
+    date: "Mar 9, 2026",
+    title: "Head-On Collisions",
+    description: "If two mowers smash into each other head-on, they now both get taken out instead of one slipping through.",
+  },
   {
     date: "Mar 9, 2026",
     title: "Guided Tutorial",
@@ -156,6 +162,8 @@ function formatDeathReason(reason?: string) {
   switch (reason) {
     case "hit by a fireball!":
       return "a fireball";
+    case "head-on-collision":
+      return "a head-on collision";
     case "wall-collision":
       return "the wall";
     case "killed-by-other":

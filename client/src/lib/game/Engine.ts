@@ -651,7 +651,7 @@ export class GameEngine {
       const py = Math.max(400, Math.min(WORLD_HEIGHT - 400, lpInterp.y));
 
       drawOuterLogo(px, -150, 0);
-      drawOuterLogo(px, WORLD_HEIGHT + 150, Math.PI);
+      drawOuterLogo(px, WORLD_HEIGHT + 150, 0);
       drawOuterLogo(-150, py, -Math.PI / 2);
       drawOuterLogo(WORLD_WIDTH + 150, py, Math.PI / 2);
     }

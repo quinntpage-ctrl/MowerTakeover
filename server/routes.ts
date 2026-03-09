@@ -11,6 +11,14 @@ export async function registerRoutes(
   const gameRoom = new GameRoom();
   gameRoom.start();
 
+  app.get('/healthz', (_req, res) => {
+    res.status(200).json({
+      ok: true,
+      players: gameRoom.getPlayerCount(),
+      uptimeSeconds: Math.floor(process.uptime()),
+    });
+  });
+
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
   const playerMap = new Map<WebSocket, string>();

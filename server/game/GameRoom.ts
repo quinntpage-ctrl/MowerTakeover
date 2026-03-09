@@ -46,7 +46,9 @@ export class GameRoom {
   private lastTickTime: number = 0;
 
   constructor() {
-    this.spawnBots(3);
+    const parsedBotCount = Number.parseInt(process.env.BOT_COUNT || '3', 10);
+    const botCount = Number.isFinite(parsedBotCount) ? Math.max(0, parsedBotCount) : 3;
+    this.spawnBots(botCount);
     this.spawnCollectibles(15, 'fireball');
     this.spawnCollectibles(1, 'invincibility');
   }
@@ -254,6 +256,14 @@ export class GameRoom {
   }
 
   private updatePlayers(dt: number, now: number) {
+    const movementStates = new Map<string, {
+      oldCell: Point;
+      newCell: Point;
+      oldCellKey: string;
+      cellKey: string;
+      movedCell: boolean;
+    }>();
+
     this.players.forEach(p => {
       if (p.invincibleUntil > 0 && p.invincibleUntil <= now) {
         p.invincibleUntil = 0;
@@ -343,6 +353,14 @@ export class GameRoom {
       const newCell = this.getCellAt(p.x, p.y);
       const cellKey = `${newCell.x},${newCell.y}`;
       const oldCellKey = `${oldCell.x},${oldCell.y}`;
+      const movedCell = oldCell.x !== newCell.x || oldCell.y !== newCell.y;
+      movementStates.set(p.id, {
+        oldCell,
+        newCell,
+        oldCellKey,
+        cellKey,
+        movedCell,
+      });
 
       const pickupRadiusSq = COLLECTIBLE_PICKUP_RADIUS * COLLECTIBLE_PICKUP_RADIUS;
       const toDelete: string[] = [];
@@ -360,54 +378,90 @@ export class GameRoom {
         }
       });
       toDelete.forEach(id => this.collectibles.delete(id));
+    });
 
-      if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
-        this.players.forEach((otherP, otherPid) => {
-          if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
-            this.killPlayer(otherPid, 'killed-by-other', p.id);
-          }
-        });
+    const movers = Array.from(movementStates.entries())
+      .map(([playerId, state]) => {
+        const player = this.players.get(playerId);
+        return player ? { player, ...state } : null;
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null && !entry.player.isDead);
 
-        const isEnteringSafeZone = p.territory.has(cellKey);
+    const headOnCollisionIds = new Set<string>();
+    for (let i = 0; i < movers.length; i++) {
+      for (let j = i + 1; j < movers.length; j++) {
+        const a = movers[i];
+        const b = movers[j];
 
-        if (isEnteringSafeZone) {
-          if (p.trail.length > 0) {
-            p.trail.push({ ...newCell });
+        const collidedInSameCell = a.newCell.x === b.newCell.x && a.newCell.y === b.newCell.y;
+        const swappedCells =
+          a.movedCell &&
+          b.movedCell &&
+          a.oldCell.x === b.newCell.x &&
+          a.oldCell.y === b.newCell.y &&
+          a.newCell.x === b.oldCell.x &&
+          a.newCell.y === b.oldCell.y;
 
-            const changedTerritories = new Set<string>();
-            this.claimTerritory(p, p.trail.map(t => `${t.x},${t.y}`), changedTerritories);
-
-            p.trailSet.clear();
-            p.trail = [];
-
-            const newlyCaptured = captureEnclosedAreas(p.territory);
-            this.claimTerritory(p, newlyCaptured, changedTerritories);
-            if (changedTerritories.size > 0) {
-              this.markTerritoryDirty(...changedTerritories);
-            }
-
-            const toKill: string[] = [];
-            this.players.forEach(player => {
-              player.updateScore();
-              if (player.territory.size === 0 && !player.isDead) {
-                toKill.push(player.id);
-              }
-            });
-            toKill.forEach(id => this.killPlayer(id, 'all-territory-lost', p.id));
-          }
-        } else {
-          const isSelfCollision = p.trailSet.has(cellKey);
-          const isRecentTrail = p.trail.slice(-3).some(t => t.x === newCell.x && t.y === newCell.y);
-          const justLeftSafeZone = p.territory.has(oldCellKey);
-
-          if (isSelfCollision && !isRecentTrail && !justLeftSafeZone) {
-            this.killPlayer(p.id, 'self-collision');
-            return;
-          }
-
-          p.trail.push({ ...newCell });
-          p.trailSet.add(cellKey);
+        if (collidedInSameCell || swappedCells) {
+          headOnCollisionIds.add(a.player.id);
+          headOnCollisionIds.add(b.player.id);
         }
+      }
+    }
+
+    headOnCollisionIds.forEach(playerId => this.killPlayer(playerId, 'head-on-collision'));
+
+    movementStates.forEach(({ oldCellKey, newCell, cellKey, movedCell }, playerId) => {
+      const p = this.players.get(playerId);
+      if (!p || p.isDead || !movedCell) return;
+
+      this.players.forEach((otherP, otherPid) => {
+        if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
+          this.killPlayer(otherPid, 'killed-by-other', p.id);
+        }
+      });
+
+      if (p.isDead) return;
+
+      const isEnteringSafeZone = p.territory.has(cellKey);
+
+      if (isEnteringSafeZone) {
+        if (p.trail.length > 0) {
+          p.trail.push({ ...newCell });
+
+          const changedTerritories = new Set<string>();
+          this.claimTerritory(p, p.trail.map(t => `${t.x},${t.y}`), changedTerritories);
+
+          p.trailSet.clear();
+          p.trail = [];
+
+          const newlyCaptured = captureEnclosedAreas(p.territory);
+          this.claimTerritory(p, newlyCaptured, changedTerritories);
+          if (changedTerritories.size > 0) {
+            this.markTerritoryDirty(...changedTerritories);
+          }
+
+          const toKill: string[] = [];
+          this.players.forEach(player => {
+            player.updateScore();
+            if (player.territory.size === 0 && !player.isDead) {
+              toKill.push(player.id);
+            }
+          });
+          toKill.forEach(id => this.killPlayer(id, 'all-territory-lost', p.id));
+        }
+      } else {
+        const isSelfCollision = p.trailSet.has(cellKey);
+        const isRecentTrail = p.trail.slice(-3).some(t => t.x === newCell.x && t.y === newCell.y);
+        const justLeftSafeZone = p.territory.has(oldCellKey);
+
+        if (isSelfCollision && !isRecentTrail && !justLeftSafeZone) {
+          this.killPlayer(p.id, 'self-collision');
+          return;
+        }
+
+        p.trail.push({ ...newCell });
+        p.trailSet.add(cellKey);
       }
     });
   }
