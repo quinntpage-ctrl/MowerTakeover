@@ -175,7 +175,7 @@ export class GameRoom {
           const dy = p.y - fb.y;
           if (dx * dx + dy * dy < hitRadiusSq) {
             hitEnemy = true;
-            this.killPlayer(p.id, 'hit by a fireball!');
+            this.killPlayer(p.id, 'hit by a fireball!', fb.ownerId);
           }
         }
       });
@@ -311,7 +311,7 @@ export class GameRoom {
       if (oldCell.x !== newCell.x || oldCell.y !== newCell.y) {
         this.players.forEach((otherP, otherPid) => {
           if (otherPid !== p.id && !otherP.isDead && otherP.trailSet.has(cellKey)) {
-            this.killPlayer(otherPid, 'killed-by-other');
+            this.killPlayer(otherPid, 'killed-by-other', p.id);
           }
         });
 
@@ -347,7 +347,7 @@ export class GameRoom {
                 toKill.push(player.id);
               }
             });
-            toKill.forEach(id => this.killPlayer(id, 'all-territory-lost'));
+            toKill.forEach(id => this.killPlayer(id, 'all-territory-lost', p.id));
           }
         } else {
           const isSelfCollision = p.trailSet.has(cellKey);
@@ -615,9 +615,16 @@ export class GameRoom {
     };
   }
 
-  private killPlayer(pid: string, reason: string) {
+  private killPlayer(pid: string, reason: string, killerId?: string) {
     const p = this.players.get(pid);
     if (!p || p.isDead) return;
+
+    if (killerId && killerId !== pid) {
+      const killer = this.players.get(killerId);
+      if (killer) {
+        killer.takeovers++;
+      }
+    }
 
     p.updateScore();
     p.finalScore = p.score;
@@ -672,8 +679,8 @@ export class GameRoom {
   private getLeaderboard(): LeaderboardEntry[] {
     return Array.from(this.players.values())
       .filter(p => !p.isDead || p.deathAlpha > 0)
-      .map(p => ({ id: p.id, name: p.name, score: p.score, color: p.color }))
-      .sort((a, b) => b.score - a.score);
+      .map(p => ({ id: p.id, name: p.name, score: p.score, takeovers: p.takeovers, color: p.color }))
+      .sort((a, b) => (b.score - a.score) || (b.takeovers - a.takeovers));
   }
 
   private serializePlayer(p: PlayerState): PlayerData {
@@ -689,6 +696,7 @@ export class GameRoom {
       isDead: p.isDead,
       deathAlpha: p.deathAlpha,
       score: p.score,
+      takeovers: p.takeovers,
       fireballs: p.fireballs,
       trailType: p.trailType,
       isBot: p.isBot

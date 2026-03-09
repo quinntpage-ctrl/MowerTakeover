@@ -4,7 +4,7 @@ import path from 'path';
 
 /**
  * Vite plugin that updates og:image and twitter:image meta tags
- * to point to the app's opengraph image with the correct Replit domain.
+ * to point to the app's opengraph image with the deployed app URL.
  */
 export function metaImagesPlugin(): Plugin {
   return {
@@ -12,7 +12,7 @@ export function metaImagesPlugin(): Plugin {
     transformIndexHtml(html) {
       const baseUrl = getDeploymentUrl();
       if (!baseUrl) {
-        log('[meta-images] no Replit deployment domain found, skipping meta tag updates');
+        log('[meta-images] no deployment URL found, keeping relative meta image paths');
         return html;
       }
 
@@ -56,19 +56,35 @@ export function metaImagesPlugin(): Plugin {
 }
 
 function getDeploymentUrl(): string | null {
+  if (process.env.PUBLIC_APP_URL) {
+    const url = normalizeUrl(process.env.PUBLIC_APP_URL);
+    log('[meta-images] using PUBLIC_APP_URL:', url);
+    return url;
+  }
+
+  if (process.env.RENDER_EXTERNAL_URL) {
+    const url = normalizeUrl(process.env.RENDER_EXTERNAL_URL);
+    log('[meta-images] using render URL:', url);
+    return url;
+  }
+
   if (process.env.REPLIT_INTERNAL_APP_DOMAIN) {
     const url = `https://${process.env.REPLIT_INTERNAL_APP_DOMAIN}`;
-    log('[meta-images] using internal app domain:', url);
+    log('[meta-images] using replit internal app domain:', url);
     return url;
   }
 
   if (process.env.REPLIT_DEV_DOMAIN) {
     const url = `https://${process.env.REPLIT_DEV_DOMAIN}`;
-    log('[meta-images] using dev domain:', url);
+    log('[meta-images] using replit dev domain:', url);
     return url;
   }
 
   return null;
+}
+
+function normalizeUrl(url: string): string {
+  return url.endsWith('/') ? url.slice(0, -1) : url;
 }
 
 function log(...args: any[]): void {

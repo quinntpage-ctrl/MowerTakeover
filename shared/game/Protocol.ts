@@ -13,6 +13,7 @@ export interface PlayerData {
   isDead: boolean;
   deathAlpha: number;
   score: number;
+  takeovers: number;
   fireballs: number;
   trailType: TrailType;
   isBot: boolean;
@@ -39,6 +40,7 @@ export interface LeaderboardEntry {
   id: string;
   name: string;
   score: number;
+  takeovers: number;
   color: string;
 }
 

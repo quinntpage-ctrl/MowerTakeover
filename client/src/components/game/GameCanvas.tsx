@@ -1,15 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { GameEngine } from '@/lib/game/Engine';
-import type { ServerMessage, ClientMessage } from '@shared/game/Protocol';
+import type { ServerMessage, ClientMessage, LeaderboardEntry } from '@shared/game/Protocol';
 import type { Direction } from '@shared/game/Constants';
 
 interface GameCanvasProps {
   playerName: string;
   playerColor?: string;
   trailType?: "grass" | "flame" | "star" | "smile";
-  onGameOver: (score: number) => void;
+  onGameOver: (score: number, reason?: string) => void;
   onScoreUpdate: (score: number) => void;
-  onLeaderboardUpdate: (leaderboard: {id: string, name: string, score: number, color: string}[]) => void;
+  onTakeoversUpdate?: (count: number) => void;
+  onLeaderboardUpdate: (leaderboard: LeaderboardEntry[]) => void;
   onFireballsUpdate?: (count: number) => void;
   shootRef?: React.MutableRefObject<(() => void) | null>;
 }
@@ -20,6 +21,7 @@ export default function GameCanvas({
   trailType,
   onGameOver,
   onScoreUpdate,
+  onTakeoversUpdate,
   onLeaderboardUpdate,
   onFireballsUpdate,
   shootRef
@@ -27,11 +29,11 @@ export default function GameCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const callbacksRef = useRef({ onGameOver, onScoreUpdate, onLeaderboardUpdate, onFireballsUpdate });
+  const callbacksRef = useRef({ onGameOver, onScoreUpdate, onTakeoversUpdate, onLeaderboardUpdate, onFireballsUpdate });
 
   useEffect(() => {
-    callbacksRef.current = { onGameOver, onScoreUpdate, onLeaderboardUpdate, onFireballsUpdate };
-  }, [onGameOver, onScoreUpdate, onLeaderboardUpdate, onFireballsUpdate]);
+    callbacksRef.current = { onGameOver, onScoreUpdate, onTakeoversUpdate, onLeaderboardUpdate, onFireballsUpdate };
+  }, [onGameOver, onScoreUpdate, onTakeoversUpdate, onLeaderboardUpdate, onFireballsUpdate]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -39,8 +41,9 @@ export default function GameCanvas({
     const engine = new GameEngine(
       canvasRef.current,
       {
-        onGameOver: (score) => callbacksRef.current.onGameOver(score),
+        onGameOver: (score, reason) => callbacksRef.current.onGameOver(score, reason),
         onScoreUpdate: (score) => callbacksRef.current.onScoreUpdate(score),
+        onTakeoversUpdate: (count) => callbacksRef.current.onTakeoversUpdate?.(count),
         onLeaderboardUpdate: (board) => callbacksRef.current.onLeaderboardUpdate(board),
         onFireballsUpdate: (count) => callbacksRef.current.onFireballsUpdate?.(count)
       }
@@ -85,7 +88,7 @@ export default function GameCanvas({
             break;
 
           case 'gameOver':
-            callbacksRef.current.onGameOver(msg.score);
+            callbacksRef.current.onGameOver(msg.score, msg.reason);
             break;
 
           case 'kill':

@@ -21,6 +21,7 @@ export class PlayerState {
   deathReason: string;
   score: number;
   finalScore: number;
+  takeovers: number;
   isBot: boolean;
   trailType: TrailType;
   rank: number;
@@ -42,6 +43,7 @@ export class PlayerState {
     this.deathReason = '';
     this.score = 0;
     this.finalScore = 0;
+    this.takeovers = 0;
     this.isBot = isBot;
     this.trailType = trailType;
     this.rank = 0;

@@ -4,13 +4,15 @@ import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
 import { Joystick, Flame, Scissors, Star, Smile, Crown, Info, ArrowLeft, Crosshair, Skull } from "lucide-react";
 import { PLAYER_COLORS } from "@shared/game/Constants";
+import type { LeaderboardEntry } from "@shared/game/Protocol";
 
 export default function Home() {
   const [gameState, setGameState] = useState<"menu" | "playing" | "gameover" | "tutorial">("menu");
   const [playerName, setPlayerName] = useState("");
   const [score, setScore] = useState(0);
+  const [takeovers, setTakeovers] = useState(0);
   const [fireballs, setFireballs] = useState(0);
-  const [leaderboard, setLeaderboard] = useState<{id: string, name: string, score: number, color: string}[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
   const [trailType, setTrailType] = useState<"grass" | "flame" | "star" | "smile">("grass");
   const shootRef = useRef<(() => void) | null>(null);
@@ -20,6 +22,7 @@ export default function Home() {
     if (!playerName.trim()) return;
     setGameState("playing");
     setScore(0);
+    setTakeovers(0);
   };
 
   const handleGameOver = (finalScore: number, reason?: string) => {
@@ -38,6 +41,7 @@ export default function Home() {
           trailType={trailType}
           onGameOver={handleGameOver}
           onScoreUpdate={setScore}
+          onTakeoversUpdate={setTakeovers}
           onLeaderboardUpdate={setLeaderboard}
           onFireballsUpdate={setFireballs}
           shootRef={shootRef}
@@ -46,7 +50,7 @@ export default function Home() {
 
       {gameState === "playing" && (
         <div 
-          className="absolute top-16 md:top-4 right-2 md:right-4 glass-panel rounded-xl p-2 md:p-4 w-36 md:w-48 shadow-lg z-10 max-h-[20vh] md:max-h-[60vh] flex flex-col pointer-events-auto"
+          className="absolute top-16 md:top-4 right-2 md:right-4 glass-panel rounded-xl p-2 md:p-4 w-40 md:w-56 shadow-lg z-10 max-h-[20vh] md:max-h-[60vh] flex flex-col pointer-events-auto"
           style={{ touchAction: 'pan-y' }}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -59,15 +63,21 @@ export default function Home() {
           >
             <ul className="space-y-1 md:space-y-2 pb-1">
               {leaderboard.map((player, idx) => (
-                <li key={idx} className="flex justify-between items-center text-xs md:text-sm font-bold relative">
-                  <span className="flex items-center gap-1.5 truncate">
+                <li key={player.id} className="flex justify-between items-center gap-2 text-xs md:text-sm font-bold relative">
+                  <span className="flex items-center gap-1.5 truncate min-w-0">
                     <span className="w-3 h-3 md:w-4 md:h-4 rounded-full border-2 border-white/50 shadow-sm shrink-0" style={{ backgroundColor: player.color }}></span>
-                    <span className="truncate max-w-[60px] md:max-w-[80px]">{player.name}</span>
+                    <span className="truncate max-w-[68px] md:max-w-[96px]">{player.name}</span>
                     {idx === 0 && <Crown className="w-3 h-3 md:w-4 md:h-4 ml-0.5 text-[#EC098D] fill-[#EC098D] drop-shadow-sm" />}
                     {idx === 1 && <Crown className="w-3 h-3 md:w-4 md:h-4 ml-0.5 text-[#C0C0C0] fill-[#C0C0C0] drop-shadow-sm" />}
                     {idx === 2 && <Crown className="w-3 h-3 md:w-4 md:h-4 ml-0.5 text-[#CD7F32] fill-[#CD7F32] drop-shadow-sm" />}
                   </span>
-                  <span className="text-foreground/80 shrink-0 text-xs">{player.score.toFixed(1)}%</span>
+                  <span className="flex flex-col items-end shrink-0 leading-none">
+                    <span className="text-foreground/80 text-xs">{player.score.toFixed(1)}%</span>
+                    <span className="flex items-center gap-1 text-[10px] md:text-[11px] text-destructive">
+                      <Skull className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                      <span>{player.takeovers}</span>
+                    </span>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -83,6 +93,16 @@ export default function Home() {
               <div className="text-lg md:text-2xl font-display text-primary flex items-center gap-1 md:gap-2">
                 <span>{score.toFixed(1)}%</span>
                 <span className="text-xs md:text-sm font-sans text-muted-foreground uppercase tracking-widest hidden md:inline">Captured</span>
+              </div>
+            </div>
+
+            <div className="glass-panel rounded-full px-3 md:px-5 py-1.5 md:py-2 shadow-lg flex items-center gap-2 md:gap-3">
+              <div className="flex items-center justify-center w-6 h-6 md:w-8 md:h-8 rounded-full bg-red-100 shadow-inner">
+                <Skull className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-red-500" />
+              </div>
+              <div className="flex items-baseline gap-1.5 md:gap-2">
+                <span className="text-lg md:text-2xl font-display text-red-500">{takeovers}</span>
+                <span className="text-xs md:text-sm font-sans text-muted-foreground uppercase tracking-widest">Takeovers</span>
               </div>
             </div>
             
@@ -290,6 +310,10 @@ export default function Home() {
         <div className="z-10 glass-panel p-5 md:p-12 rounded-2xl md:rounded-3xl shadow-2xl max-w-sm md:max-w-md w-full mx-3 md:mx-4 border-2 border-white/50 animate-in slide-in-from-bottom-8 duration-500 text-center">
           <h2 className="text-3xl md:text-5xl font-display text-destructive mb-1 md:mb-2">Wasted!</h2>
           <p className="text-lg md:text-xl text-foreground font-bold mb-4 md:mb-6">You captured <span className="text-primary text-2xl md:text-3xl font-display ml-1">{score.toFixed(1)}%</span></p>
+          <p className="text-sm md:text-lg text-foreground font-bold mb-4 md:mb-6 flex items-center justify-center gap-2">
+            <Skull className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
+            <span>{takeovers} takeovers</span>
+          </p>
           
           <div className="bg-white/50 rounded-xl md:rounded-2xl p-3 md:p-4 mb-4 md:mb-8">
             <h4 className="font-bold text-muted-foreground mb-1 md:mb-2 uppercase text-[10px] md:text-xs tracking-wider">Instructions</h4>

@@ -5,6 +5,7 @@ import type { Point } from '@shared/game/Player';
 interface GameCallbacks {
   onGameOver: (score: number, reason?: string) => void;
   onScoreUpdate: (score: number) => void;
+  onTakeoversUpdate?: (count: number) => void;
   onLeaderboardUpdate: (board: LeaderboardEntry[]) => void;
   onFireballsUpdate?: (count: number) => void;
 }
@@ -111,6 +112,7 @@ export class GameEngine {
     const localP = this.players.find(p => p.id === this.localPlayerId);
     if (localP) {
       this.callbacks.onScoreUpdate(localP.score);
+      this.callbacks.onTakeoversUpdate?.(localP.takeovers);
       this.callbacks.onFireballsUpdate?.(localP.fireballs);
     }
 
