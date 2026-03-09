@@ -5,6 +5,7 @@ interface MowerCustomizerPreviewProps {
   color: string;
   trailType: TrailType;
   className?: string;
+  variant?: "full" | "button";
 }
 
 interface PreviewPoint {
@@ -28,17 +29,41 @@ interface PreviewParticle {
 
 type PreviewDirection = "UP" | "DOWN" | "LEFT" | "RIGHT";
 
-const PREVIEW_WIDTH = 420;
-const PREVIEW_HEIGHT = 220;
-const TRAIL_HISTORY_LIMIT = 90;
-const ROUTE: PreviewPoint[] = [
-  { x: 88, y: 86 },
-  { x: 320, y: 86 },
-  { x: 320, y: 146 },
-  { x: 150, y: 146 },
-  { x: 150, y: 112 },
-  { x: 256, y: 112 },
-];
+const PREVIEW_CONFIG = {
+  full: {
+    width: 420,
+    height: 220,
+    speed: 115,
+    showArenaBorder: true,
+    resetOnLoop: false,
+    trailHistoryLimit: 90,
+    canvasClassName: "h-auto w-full rounded-[28px] border border-white/70 bg-white/25 shadow-inner",
+    route: [
+      { x: 90, y: 78 },
+      { x: 330, y: 78 },
+      { x: 330, y: 148 },
+      { x: 120, y: 148 },
+      { x: 120, y: 58 },
+      { x: 270, y: 58 },
+      { x: 270, y: 178 },
+      { x: 90, y: 178 },
+      { x: 90, y: 78 },
+    ] as PreviewPoint[],
+  },
+  button: {
+    width: 220,
+    height: 86,
+    speed: 58,
+    showArenaBorder: false,
+    resetOnLoop: true,
+    trailHistoryLimit: 56,
+    canvasClassName: "h-auto w-full rounded-xl bg-transparent",
+    route: [
+      { x: 28, y: 43 },
+      { x: 192, y: 43 },
+    ] as PreviewPoint[],
+  },
+} as const;
 
 function drawMower(ctx: CanvasRenderingContext2D, color: string, x: number, y: number, angle: number) {
   ctx.save();
@@ -106,35 +131,41 @@ function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, outerRadi
   ctx.restore();
 }
 
-function drawBackdrop(ctx: CanvasRenderingContext2D) {
-  const gradient = ctx.createLinearGradient(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
-  gradient.addColorStop(0, "#fef3c7");
-  gradient.addColorStop(0.45, "#dcfce7");
-  gradient.addColorStop(1, "#bbf7d0");
+function drawBackdrop(ctx: CanvasRenderingContext2D, width: number, height: number, variant: "full" | "button") {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  if (variant === "button") {
+    gradient.addColorStop(0, "rgba(254, 249, 195, 0.88)");
+    gradient.addColorStop(0.48, "rgba(220, 252, 231, 0.9)");
+    gradient.addColorStop(1, "rgba(191, 219, 254, 0.88)");
+  } else {
+    gradient.addColorStop(0, "#fef3c7");
+    gradient.addColorStop(0.45, "#dcfce7");
+    gradient.addColorStop(1, "#bbf7d0");
+  }
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
+  ctx.fillRect(0, 0, width, height);
 
-  ctx.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx.strokeStyle = variant === "button" ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.35)";
   ctx.lineWidth = 1;
-  for (let x = 0; x <= PREVIEW_WIDTH; x += 28) {
+  for (let x = 0; x <= width; x += 28) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, PREVIEW_HEIGHT);
+    ctx.lineTo(x, height);
     ctx.stroke();
   }
-  for (let y = 0; y <= PREVIEW_HEIGHT; y += 28) {
+  for (let y = 0; y <= height; y += 28) {
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(PREVIEW_WIDTH, y);
+    ctx.lineTo(width, y);
     ctx.stroke();
   }
 }
 
-function sampleRoute(distance: number) {
+function sampleRoute(distance: number, route: PreviewPoint[]) {
   let remaining = distance;
-  for (let i = 0; i < ROUTE.length - 1; i++) {
-    const start = ROUTE[i];
-    const end = ROUTE[i + 1];
+  for (let i = 0; i < route.length - 1; i++) {
+    const start = route[i];
+    const end = route[i + 1];
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const length = Math.hypot(dx, dy);
@@ -151,8 +182,8 @@ function sampleRoute(distance: number) {
     remaining -= length;
   }
 
-  const last = ROUTE[ROUTE.length - 1];
-  const prev = ROUTE[ROUTE.length - 2];
+  const last = route[route.length - 1];
+  const prev = route[route.length - 2];
   return {
     x: last.x,
     y: last.y,
@@ -160,10 +191,10 @@ function sampleRoute(distance: number) {
   };
 }
 
-function getRouteLength() {
+function getRouteLength(route: PreviewPoint[]) {
   let total = 0;
-  for (let i = 0; i < ROUTE.length - 1; i++) {
-    total += Math.hypot(ROUTE[i + 1].x - ROUTE[i].x, ROUTE[i + 1].y - ROUTE[i].y);
+  for (let i = 0; i < route.length - 1; i++) {
+    total += Math.hypot(route[i + 1].x - route[i].x, route[i + 1].y - route[i].y);
   }
   return total;
 }
@@ -393,11 +424,14 @@ export default function MowerCustomizerPreview({
   color,
   trailType,
   className,
+  variant = "full",
 }: MowerCustomizerPreviewProps) {
+  const config = PREVIEW_CONFIG[variant];
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const trailHistoryRef = useRef<PreviewPoint[]>([]);
   const particlesRef = useRef<PreviewParticle[]>([]);
-  const routeLengthRef = useRef(getRouteLength());
+  const routeLengthRef = useRef(0);
+  const previousDistanceRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -407,8 +441,8 @@ export default function MowerCustomizerPreview({
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = PREVIEW_WIDTH * dpr;
-    canvas.height = PREVIEW_HEIGHT * dpr;
+    canvas.width = config.width * dpr;
+    canvas.height = config.height * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     let frameId = 0;
@@ -418,21 +452,29 @@ export default function MowerCustomizerPreview({
 
     trailHistoryRef.current = [];
     particlesRef.current = [];
+    routeLengthRef.current = getRouteLength(config.route);
+    previousDistanceRef.current = 0;
 
     const drawFrame = (timestamp: number) => {
       const dt = Math.min((timestamp - previousFrameTime) / 1000, 0.1);
       previousFrameTime = timestamp;
       const elapsed = (timestamp - startTime) / 1000;
-      const speed = 115;
+      const speed = config.speed;
       const distance = (elapsed * speed) % routeLengthRef.current;
-      const mower = sampleRoute(distance);
+      if (config.resetOnLoop && distance < previousDistanceRef.current) {
+        trailHistoryRef.current = [];
+        particlesRef.current = [];
+      }
+      previousDistanceRef.current = distance;
+
+      const mower = sampleRoute(distance, config.route);
       const direction = getPreviewDirection(mower.angle);
 
       const trailHistory = trailHistoryRef.current;
       const lastPoint = trailHistory[trailHistory.length - 1];
       if (!lastPoint || Math.hypot(lastPoint.x - mower.x, lastPoint.y - mower.y) > 3) {
         trailHistory.push({ x: mower.x, y: mower.y });
-        if (trailHistory.length > TRAIL_HISTORY_LIMIT) {
+        if (trailHistory.length > config.trailHistoryLimit) {
           trailHistory.shift();
         }
       }
@@ -454,16 +496,18 @@ export default function MowerCustomizerPreview({
         }
       }
 
-      ctx.clearRect(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
-      drawBackdrop(ctx);
+      ctx.clearRect(0, 0, config.width, config.height);
+      drawBackdrop(ctx, config.width, config.height, variant);
 
-      ctx.save();
-      ctx.strokeStyle = "rgba(236, 9, 141, 0.9)";
-      ctx.lineWidth = 5;
-      ctx.shadowColor = "rgba(236, 9, 141, 0.45)";
-      ctx.shadowBlur = 12;
-      ctx.strokeRect(10, 10, PREVIEW_WIDTH - 20, PREVIEW_HEIGHT - 20);
-      ctx.restore();
+      if (config.showArenaBorder) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(236, 9, 141, 0.9)";
+        ctx.lineWidth = 5;
+        ctx.shadowColor = "rgba(236, 9, 141, 0.45)";
+        ctx.shadowBlur = 12;
+        ctx.strokeRect(10, 10, config.width - 20, config.height - 20);
+        ctx.restore();
+      }
 
       drawTrailLine(ctx, trailHistory, color);
       particlesRef.current.forEach((particle) => drawParticle(ctx, particle));
@@ -480,8 +524,8 @@ export default function MowerCustomizerPreview({
     <div className={className}>
       <canvas
         ref={canvasRef}
-        className="h-auto w-full rounded-[28px] border border-white/70 bg-white/25 shadow-inner"
-        style={{ aspectRatio: `${PREVIEW_WIDTH} / ${PREVIEW_HEIGHT}` }}
+        className={config.canvasClassName}
+        style={{ aspectRatio: `${config.width} / ${config.height}` }}
       />
     </div>
   );

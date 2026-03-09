@@ -415,20 +415,6 @@ export default function Home() {
               Start Mowing
             </Button>
 
-            <Button 
-              type="button" 
-              variant="outline"
-              onClick={() => {
-                soundEffects.playClick();
-                setGameState("tutorial");
-              }}
-              className="w-full h-7 md:h-10 text-sm md:text-base font-bold rounded-lg md:rounded-xl shadow-sm border-2 border-primary/20 hover:border-primary/50 text-foreground/80 hover:text-foreground flex items-center justify-center gap-1.5 bg-white/50"
-              data-testid="button-tutorial"
-            >
-              <Info className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              Tutorial
-            </Button>
-
             <button
               type="button"
               onClick={() => {
@@ -444,10 +430,24 @@ export default function Home() {
                   <div className="mt-0.5 text-sm font-bold text-foreground">Preview your selected mower</div>
                 </div>
                 <div className="w-28 md:w-32 overflow-hidden rounded-xl border border-white/70 bg-white/35 shadow-inner shrink-0">
-                  <MowerCustomizerPreview color={selectedColor} trailType={trailType} />
+                  <MowerCustomizerPreview color={selectedColor} trailType={trailType} variant="button" />
                 </div>
               </div>
             </button>
+
+            <Button 
+              type="button" 
+              variant="outline"
+              onClick={() => {
+                soundEffects.playClick();
+                setGameState("tutorial");
+              }}
+              className="w-full h-7 md:h-10 text-sm md:text-base font-bold rounded-lg md:rounded-xl shadow-sm border-2 border-primary/20 hover:border-primary/50 text-foreground/80 hover:text-foreground flex items-center justify-center gap-1.5 bg-white/50"
+              data-testid="button-tutorial"
+            >
+              <Info className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              Tutorial
+            </Button>
 
             <Button
               type="button"
