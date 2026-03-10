@@ -15,6 +15,7 @@ export interface PlayerData {
   score: number;
   takeovers: number;
   invincibleTimeLeft: number;
+  speedBoostTimeLeft: number;
   fireballs: number;
   trailType: TrailType;
   isBot: boolean;
@@ -34,7 +35,7 @@ export interface CollectibleData {
   id: string;
   x: number;
   y: number;
-  type: 'fireball' | 'invincibility';
+  type: 'fireball' | 'invincibility' | 'speed';
 }
 
 export interface LeaderboardEntry {
@@ -56,7 +57,7 @@ export type ServerMessage =
   | { type: 'leaderboard'; board: LeaderboardEntry[] }
   | { type: 'gameOver'; score: number; reason: string; survivedSeconds: number }
   | { type: 'fireballImpact'; impact: 'land'; x: number; y: number }
-  | { type: 'kill'; playerId: string; reason: string };
+  | { type: 'kill'; playerId: string; reason: string; killerId?: string };
 
 export interface GameStateSnapshot {
   players: PlayerData[];

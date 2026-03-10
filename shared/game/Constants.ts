@@ -12,9 +12,13 @@ export const COLLECTIBLE_PICKUP_RADIUS = 20;
 export const EXPLOSION_RADIUS = 2;
 export const INVINCIBILITY_DURATION = 8;
 export const INVINCIBILITY_RESPAWN_DELAY = 12;
+export const SPEED_BOOST_DURATION = 4;
+export const SPEED_BOOST_MULTIPLIER = 1.3;
+export const SPEED_BOOST_RESPAWN_DELAY = 6;
 
 export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
-export type TrailType = 'grass' | 'flame' | 'star' | 'smile' | 'money' | 'banana';
+export type TrailType = 'grass' | 'star' | 'smile' | 'money' | 'bubble' | 'confetti' | 'heart' | 'bolt' | 'leaf' | 'gem' | 'music' | 'snow';
+export const TRAIL_TYPES: TrailType[] = ['grass', 'star', 'smile', 'money', 'bubble', 'confetti', 'heart', 'bolt', 'leaf', 'gem', 'music', 'snow'];
 
 export const COLORS = {
   bg: '#94a3b8',
@@ -36,4 +40,10 @@ export const PLAYER_COLORS = [
   '#f97316',
   '#14b8a6',
   '#6366f1',
+  '#ef4444',
+  '#10b981',
+  '#06b6d4',
+  '#84cc16',
+  '#f43f5e',
+  '#8b5cf6',
 ];

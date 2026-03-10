@@ -13,6 +13,7 @@ interface GameCanvasProps {
   onScoreUpdate: (score: number) => void;
   onTakeoversUpdate?: (count: number) => void;
   onInvincibilityUpdate?: (seconds: number) => void;
+  onSpeedBoostUpdate?: (seconds: number) => void;
   onLeaderboardUpdate: (leaderboard: LeaderboardEntry[]) => void;
   onFireballsUpdate?: (count: number) => void;
   shootRef?: React.MutableRefObject<(() => void) | null>;
@@ -27,6 +28,7 @@ export default function GameCanvas({
   onScoreUpdate,
   onTakeoversUpdate,
   onInvincibilityUpdate,
+  onSpeedBoostUpdate,
   onLeaderboardUpdate,
   onFireballsUpdate,
   shootRef
@@ -35,11 +37,13 @@ export default function GameCanvas({
   const engineRef = useRef<GameEngine | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const fireballCountRef = useRef(fireballCount);
-  const callbacksRef = useRef({ onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onLeaderboardUpdate, onFireballsUpdate });
+  const localPlayerIdRef = useRef<string | null>(null);
+  const lastTakeoversRef = useRef<number | null>(null);
+  const callbacksRef = useRef({ onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onSpeedBoostUpdate, onLeaderboardUpdate, onFireballsUpdate });
 
   useEffect(() => {
-    callbacksRef.current = { onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onLeaderboardUpdate, onFireballsUpdate };
-  }, [onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onLeaderboardUpdate, onFireballsUpdate]);
+    callbacksRef.current = { onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onSpeedBoostUpdate, onLeaderboardUpdate, onFireballsUpdate };
+  }, [onGameOver, onScoreUpdate, onTakeoversUpdate, onInvincibilityUpdate, onSpeedBoostUpdate, onLeaderboardUpdate, onFireballsUpdate]);
 
   useEffect(() => {
     fireballCountRef.current = fireballCount;
@@ -53,8 +57,15 @@ export default function GameCanvas({
       {
         onGameOver: (score, reason, survivedSeconds) => callbacksRef.current.onGameOver(score, reason, survivedSeconds),
         onScoreUpdate: (score) => callbacksRef.current.onScoreUpdate(score),
-        onTakeoversUpdate: (count) => callbacksRef.current.onTakeoversUpdate?.(count),
+        onTakeoversUpdate: (count) => {
+          if (lastTakeoversRef.current !== null && count > lastTakeoversRef.current) {
+            soundEffects.playKillConfirm();
+          }
+          lastTakeoversRef.current = count;
+          callbacksRef.current.onTakeoversUpdate?.(count);
+        },
         onInvincibilityUpdate: (seconds) => callbacksRef.current.onInvincibilityUpdate?.(seconds),
+        onSpeedBoostUpdate: (seconds) => callbacksRef.current.onSpeedBoostUpdate?.(seconds),
         onLeaderboardUpdate: (board) => callbacksRef.current.onLeaderboardUpdate(board),
         onFireballsUpdate: (count) => callbacksRef.current.onFireballsUpdate?.(count)
       }
@@ -85,6 +96,8 @@ export default function GameCanvas({
 
         switch (msg.type) {
           case 'welcome':
+            localPlayerIdRef.current = msg.playerId;
+            lastTakeoversRef.current = null;
             engine.setLocalPlayerId(msg.playerId);
             engine.applyState(msg.state.players, msg.state.fireballs, msg.state.collectibles);
             engine.applyLeaderboard(msg.state.leaderboard);
@@ -109,8 +122,8 @@ export default function GameCanvas({
             break;
 
           case 'kill':
-            if (msg.reason === 'hit by a fireball!') {
-              soundEffects.playFireballKill();
+            if (msg.playerId === localPlayerIdRef.current) {
+              soundEffects.playDeath();
             }
             break;
         }
@@ -227,6 +240,8 @@ export default function GameCanvas({
     return () => {
       engine.stop();
       ws.close();
+      localPlayerIdRef.current = null;
+      lastTakeoversRef.current = null;
       window.removeEventListener('keydown', handleKey);
       window.removeEventListener('resize', handleResize);
       window.visualViewport?.removeEventListener('resize', handleResize);

@@ -24,7 +24,7 @@ interface PreviewParticle {
   size: number;
   rotation: number;
   vRot: number;
-  type?: "star" | "smile" | "money" | "banana";
+  type?: "star" | "smile" | "money" | "bubble" | "confetti" | "heart" | "bolt" | "leaf" | "gem" | "music" | "snow";
 }
 
 type PreviewDirection = "UP" | "DOWN" | "LEFT" | "RIGHT";
@@ -221,27 +221,6 @@ function spawnTrailParticle(
   let px = x;
   let py = y;
 
-  if (trailType === "flame") {
-    if (direction === "UP") { vx = (Math.random() - 0.5) * 20; vy = 40 + Math.random() * 40; py += 10; }
-    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 20; vy = -40 - Math.random() * 40; py -= 10; }
-    else if (direction === "LEFT") { vx = 40 + Math.random() * 40; vy = (Math.random() - 0.5) * 20; px += 10; }
-    else { vx = -40 - Math.random() * 40; vy = (Math.random() - 0.5) * 20; px -= 10; }
-    const colors = ["#f97316", "#ef4444", "#eab308"];
-    particles.push({
-      x: px + (Math.random() - 0.5) * 15,
-      y: py + (Math.random() - 0.5) * 15,
-      vx,
-      vy,
-      life: Math.random() * 0.4 + 0.3,
-      maxLife: 0.7,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      size: Math.random() * 6 + 4,
-      rotation: Math.random() * Math.PI * 2,
-      vRot: (Math.random() - 0.5) * 5,
-    });
-    return;
-  }
-
   if (trailType === "star") {
     if (direction === "UP") { vx = (Math.random() - 0.5) * 30; vy = 30 + Math.random() * 20; py += 15; }
     else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 30; vy = -30 - Math.random() * 20; py -= 15; }
@@ -305,11 +284,53 @@ function spawnTrailParticle(
     return;
   }
 
-  if (trailType === "banana") {
-    if (direction === "UP") { vx = (Math.random() - 0.5) * 18; vy = 14 + Math.random() * 14; py += 12; }
-    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 18; vy = -14 - Math.random() * 14; py -= 12; }
-    else if (direction === "LEFT") { vx = 14 + Math.random() * 14; vy = (Math.random() - 0.5) * 18; px += 12; }
-    else { vx = -14 - Math.random() * 14; vy = (Math.random() - 0.5) * 18; px -= 12; }
+  if (trailType === "bubble") {
+    if (direction === "UP") { vx = (Math.random() - 0.5) * 16; vy = 6 + Math.random() * 10; py += 10; }
+    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 16; vy = -6 - Math.random() * 10; py -= 10; }
+    else if (direction === "LEFT") { vx = 6 + Math.random() * 10; vy = (Math.random() - 0.5) * 16; px += 10; }
+    else { vx = -6 - Math.random() * 10; vy = (Math.random() - 0.5) * 16; px -= 10; }
+    particles.push({
+      x: px + (Math.random() - 0.5) * 8,
+      y: py + (Math.random() - 0.5) * 8,
+      vx,
+      vy,
+      life: Math.random() * 0.6 + 0.55,
+      maxLife: 1.15,
+      color: ["#67e8f9", "#93c5fd", "#bfdbfe"][Math.floor(Math.random() * 3)],
+      size: Math.random() * 4 + 6,
+      rotation: 0,
+      vRot: 0,
+      type: "bubble",
+    });
+    return;
+  }
+
+  if (trailType === "confetti") {
+    if (direction === "UP") { vx = (Math.random() - 0.5) * 28; vy = 12 + Math.random() * 18; py += 10; }
+    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 28; vy = -12 - Math.random() * 18; py -= 10; }
+    else if (direction === "LEFT") { vx = 12 + Math.random() * 18; vy = (Math.random() - 0.5) * 28; px += 10; }
+    else { vx = -12 - Math.random() * 18; vy = (Math.random() - 0.5) * 28; px -= 10; }
+    particles.push({
+      x: px + (Math.random() - 0.5) * 10,
+      y: py + (Math.random() - 0.5) * 10,
+      vx,
+      vy,
+      life: Math.random() * 0.45 + 0.35,
+      maxLife: 0.8,
+      color: ["#f43f5e", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7"][Math.floor(Math.random() * 5)],
+      size: Math.random() * 4 + 4,
+      rotation: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 8,
+      type: "confetti",
+    });
+    return;
+  }
+
+  if (trailType === "heart") {
+    if (direction === "UP") { vx = (Math.random() - 0.5) * 16; vy = 12 + Math.random() * 10; py += 10; }
+    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 16; vy = -12 - Math.random() * 10; py -= 10; }
+    else if (direction === "LEFT") { vx = 12 + Math.random() * 10; vy = (Math.random() - 0.5) * 16; px += 10; }
+    else { vx = -12 - Math.random() * 10; vy = (Math.random() - 0.5) * 16; px -= 10; }
     particles.push({
       x: px + (Math.random() - 0.5) * 8,
       y: py + (Math.random() - 0.5) * 8,
@@ -317,11 +338,116 @@ function spawnTrailParticle(
       vy,
       life: Math.random() * 0.55 + 0.45,
       maxLife: 1.0,
-      color: "#facc15",
+      color: ["#fb7185", "#f43f5e", "#fda4af"][Math.floor(Math.random() * 3)],
       size: Math.random() * 3 + 7,
       rotation: Math.random() * Math.PI * 2,
-      vRot: (Math.random() - 0.5) * 2,
-      type: "banana",
+      vRot: (Math.random() - 0.5) * 1.2,
+      type: "heart",
+    });
+    return;
+  }
+
+  if (trailType === "bolt") {
+    if (direction === "UP") { vx = (Math.random() - 0.5) * 24; vy = 18 + Math.random() * 18; py += 10; }
+    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 24; vy = -18 - Math.random() * 18; py -= 10; }
+    else if (direction === "LEFT") { vx = 18 + Math.random() * 18; vy = (Math.random() - 0.5) * 24; px += 10; }
+    else { vx = -18 - Math.random() * 18; vy = (Math.random() - 0.5) * 24; px -= 10; }
+    particles.push({
+      x: px + (Math.random() - 0.5) * 9,
+      y: py + (Math.random() - 0.5) * 9,
+      vx,
+      vy,
+      life: Math.random() * 0.35 + 0.25,
+      maxLife: 0.6,
+      color: ["#facc15", "#fde047", "#fef08a"][Math.floor(Math.random() * 3)],
+      size: Math.random() * 3 + 6,
+      rotation: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 4,
+      type: "bolt",
+    });
+    return;
+  }
+
+  if (trailType === "leaf") {
+    if (direction === "UP") { vx = (Math.random() - 0.5) * 14; vy = 10 + Math.random() * 12; py += 10; }
+    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 14; vy = -10 - Math.random() * 12; py -= 10; }
+    else if (direction === "LEFT") { vx = 10 + Math.random() * 12; vy = (Math.random() - 0.5) * 14; px += 10; }
+    else { vx = -10 - Math.random() * 12; vy = (Math.random() - 0.5) * 14; px -= 10; }
+    particles.push({
+      x: px + (Math.random() - 0.5) * 7,
+      y: py + (Math.random() - 0.5) * 7,
+      vx,
+      vy,
+      life: Math.random() * 0.5 + 0.45,
+      maxLife: 0.95,
+      color: ["#22c55e", "#4ade80", "#86efac"][Math.floor(Math.random() * 3)],
+      size: Math.random() * 3 + 6,
+      rotation: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 2.2,
+      type: "leaf",
+    });
+    return;
+  }
+
+  if (trailType === "gem") {
+    if (direction === "UP") { vx = (Math.random() - 0.5) * 16; vy = 14 + Math.random() * 14; py += 10; }
+    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 16; vy = -14 - Math.random() * 14; py -= 10; }
+    else if (direction === "LEFT") { vx = 14 + Math.random() * 14; vy = (Math.random() - 0.5) * 16; px += 10; }
+    else { vx = -14 - Math.random() * 14; vy = (Math.random() - 0.5) * 16; px -= 10; }
+    particles.push({
+      x: px + (Math.random() - 0.5) * 7,
+      y: py + (Math.random() - 0.5) * 7,
+      vx,
+      vy,
+      life: Math.random() * 0.55 + 0.4,
+      maxLife: 0.95,
+      color: ["#06b6d4", "#67e8f9", "#a5f3fc"][Math.floor(Math.random() * 3)],
+      size: Math.random() * 3 + 6,
+      rotation: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 2.4,
+      type: "gem",
+    });
+    return;
+  }
+
+  if (trailType === "music") {
+    if (direction === "UP") { vx = (Math.random() - 0.5) * 12; vy = 8 + Math.random() * 10; py += 10; }
+    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 12; vy = -8 - Math.random() * 10; py -= 10; }
+    else if (direction === "LEFT") { vx = 8 + Math.random() * 10; vy = (Math.random() - 0.5) * 12; px += 10; }
+    else { vx = -8 - Math.random() * 10; vy = (Math.random() - 0.5) * 12; px -= 10; }
+    particles.push({
+      x: px + (Math.random() - 0.5) * 6,
+      y: py + (Math.random() - 0.5) * 6,
+      vx,
+      vy,
+      life: Math.random() * 0.65 + 0.4,
+      maxLife: 1.05,
+      color: ["#8b5cf6", "#a78bfa", "#c4b5fd"][Math.floor(Math.random() * 3)],
+      size: Math.random() * 3 + 6,
+      rotation: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 1.4,
+      type: "music",
+    });
+    return;
+  }
+
+  if (trailType === "snow") {
+    if (direction === "UP") { vx = (Math.random() - 0.5) * 10; vy = 6 + Math.random() * 8; py += 10; }
+    else if (direction === "DOWN") { vx = (Math.random() - 0.5) * 10; vy = -6 - Math.random() * 8; py -= 10; }
+    else if (direction === "LEFT") { vx = 6 + Math.random() * 8; vy = (Math.random() - 0.5) * 10; px += 10; }
+    else { vx = -6 - Math.random() * 8; vy = (Math.random() - 0.5) * 10; px -= 10; }
+    particles.push({
+      x: px + (Math.random() - 0.5) * 6,
+      y: py + (Math.random() - 0.5) * 6,
+      vx,
+      vy,
+      life: Math.random() * 0.7 + 0.5,
+      maxLife: 1.15,
+      color: ["#e2e8f0", "#ffffff", "#bfdbfe"][Math.floor(Math.random() * 3)],
+      size: Math.random() * 2 + 5,
+      rotation: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 1.6,
+      type: "snow",
     });
     return;
   }
@@ -396,22 +522,88 @@ function drawParticle(ctx: CanvasRenderingContext2D, particle: PreviewParticle) 
     ctx.moveTo(0, -particle.size * 0.18);
     ctx.lineTo(0, particle.size * 0.18);
     ctx.stroke();
-  } else if (particle.type === "banana") {
+  } else if (particle.type === "bubble") {
+    ctx.fillStyle = `${particle.color}55`;
     ctx.strokeStyle = particle.color;
-    ctx.lineWidth = Math.max(2, particle.size * 0.32);
-    ctx.lineCap = "round";
+    ctx.lineWidth = Math.max(1.5, particle.size * 0.12);
     ctx.beginPath();
-    ctx.arc(0, 0, particle.size * 0.55, 0.3, 2.45);
+    ctx.arc(0, 0, particle.size * 0.55, 0, Math.PI * 2);
+    ctx.fill();
     ctx.stroke();
 
-    ctx.strokeStyle = "#a16207";
-    ctx.lineWidth = Math.max(1, particle.size * 0.1);
+    ctx.fillStyle = "#ffffffAA";
     ctx.beginPath();
-    ctx.moveTo(-particle.size * 0.45, particle.size * 0.08);
-    ctx.lineTo(-particle.size * 0.62, particle.size * 0.18);
-    ctx.moveTo(particle.size * 0.35, particle.size * 0.34);
-    ctx.lineTo(particle.size * 0.5, particle.size * 0.48);
+    ctx.arc(-particle.size * 0.18, -particle.size * 0.18, particle.size * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (particle.type === "confetti") {
+    ctx.fillStyle = particle.color;
+    ctx.fillRect(-particle.size * 0.4, -particle.size * 0.22, particle.size * 0.8, particle.size * 0.44);
+  } else if (particle.type === "heart") {
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.moveTo(0, particle.size * 0.55);
+    ctx.bezierCurveTo(particle.size * 0.8, particle.size * 0.1, particle.size * 0.8, -particle.size * 0.45, 0, -particle.size * 0.1);
+    ctx.bezierCurveTo(-particle.size * 0.8, -particle.size * 0.45, -particle.size * 0.8, particle.size * 0.1, 0, particle.size * 0.55);
+    ctx.fill();
+  } else if (particle.type === "bolt") {
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.moveTo(-particle.size * 0.2, -particle.size * 0.6);
+    ctx.lineTo(particle.size * 0.25, -particle.size * 0.6);
+    ctx.lineTo(-particle.size * 0.02, -particle.size * 0.05);
+    ctx.lineTo(particle.size * 0.32, -particle.size * 0.05);
+    ctx.lineTo(-particle.size * 0.3, particle.size * 0.65);
+    ctx.lineTo(-particle.size * 0.02, particle.size * 0.12);
+    ctx.lineTo(-particle.size * 0.34, particle.size * 0.12);
+    ctx.closePath();
+    ctx.fill();
+  } else if (particle.type === "leaf") {
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, particle.size * 0.55, particle.size * 0.32, Math.PI / 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#166534";
+    ctx.lineWidth = Math.max(1, particle.size * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(-particle.size * 0.28, particle.size * 0.18);
+    ctx.lineTo(particle.size * 0.3, -particle.size * 0.22);
     ctx.stroke();
+  } else if (particle.type === "gem") {
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.moveTo(0, -particle.size * 0.7);
+    ctx.lineTo(particle.size * 0.55, 0);
+    ctx.lineTo(0, particle.size * 0.7);
+    ctx.lineTo(-particle.size * 0.55, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#0f766e";
+    ctx.lineWidth = Math.max(1, particle.size * 0.08);
+    ctx.stroke();
+  } else if (particle.type === "music") {
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.arc(-particle.size * 0.18, particle.size * 0.2, particle.size * 0.22, 0, Math.PI * 2);
+    ctx.arc(particle.size * 0.2, particle.size * 0.08, particle.size * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = particle.color;
+    ctx.lineWidth = Math.max(1.6, particle.size * 0.12);
+    ctx.beginPath();
+    ctx.moveTo(-particle.size * 0.02, particle.size * 0.18);
+    ctx.lineTo(-particle.size * 0.02, -particle.size * 0.55);
+    ctx.lineTo(particle.size * 0.35, -particle.size * 0.42);
+    ctx.lineTo(particle.size * 0.35, particle.size * 0.08);
+    ctx.stroke();
+  } else if (particle.type === "snow") {
+    ctx.strokeStyle = particle.color;
+    ctx.lineWidth = Math.max(1.2, particle.size * 0.08);
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(-particle.size * 0.55, 0);
+      ctx.lineTo(particle.size * 0.55, 0);
+      ctx.stroke();
+      ctx.rotate(Math.PI / 3);
+    }
   } else {
     ctx.fillStyle = particle.color;
     ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);

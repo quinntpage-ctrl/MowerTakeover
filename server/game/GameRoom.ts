@@ -5,6 +5,7 @@ import {
   PLAYER_SPEED, TICK_RATE, FIREBALL_SPEED, FIREBALL_LIFETIME,
   FIREBALL_HIT_RADIUS, COLLECTIBLE_PICKUP_RADIUS, EXPLOSION_RADIUS,
   INVINCIBILITY_DURATION, INVINCIBILITY_RESPAWN_DELAY,
+  SPEED_BOOST_DURATION, SPEED_BOOST_MULTIPLIER, SPEED_BOOST_RESPAWN_DELAY,
   BOT_NAMES, PLAYER_COLORS, Direction, TrailType
 } from '../../shared/game/Constants';
 import { captureEnclosedAreas } from '../../shared/game/Utils';
@@ -27,7 +28,7 @@ interface Collectible {
   id: string;
   x: number;
   y: number;
-  type: 'fireball' | 'invincibility';
+  type: 'fireball' | 'invincibility' | 'speed';
 }
 
 interface ConnectedPlayer {
@@ -42,15 +43,15 @@ export class GameRoom {
   private collectibles: Map<string, Collectible> = new Map();
   private territoryDirty: Set<string> = new Set();
   private invincibilityRespawnCooldown: number = 0;
+  private speedBoostRespawnCooldown: number = 0;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private lastTickTime: number = 0;
+  private nextBotIndex: number = 0;
 
   constructor() {
-    const parsedBotCount = Number.parseInt(process.env.BOT_COUNT || '3', 10);
-    const botCount = Number.isFinite(parsedBotCount) ? Math.max(0, parsedBotCount) : 3;
-    this.spawnBots(botCount);
     this.spawnCollectibles(15, 'fireball');
     this.spawnCollectibles(1, 'invincibility');
+    this.spawnCollectibles(5, 'speed');
   }
 
   start() {
@@ -80,6 +81,7 @@ export class GameRoom {
     this.players.set(playerId, player);
     this.connections.set(playerId, { ws, playerId });
     this.markTerritoryDirty(playerId);
+    this.reconcileBotCount();
 
     const welcome: ServerMessage = {
       type: 'welcome',
@@ -102,6 +104,8 @@ export class GameRoom {
     }
     this.players.delete(playerId);
     this.connections.delete(playerId);
+    this.botPhases.delete(playerId);
+    this.reconcileBotCount();
     this.updateAllScores();
   }
 
@@ -241,6 +245,7 @@ export class GameRoom {
   private updateCollectibles(dt: number) {
     const fireballCount = Array.from(this.collectibles.values()).filter(col => col.type === 'fireball').length;
     const invincibilityCount = Array.from(this.collectibles.values()).filter(col => col.type === 'invincibility').length;
+    const speedBoostCount = Array.from(this.collectibles.values()).filter(col => col.type === 'speed').length;
 
     if (fireballCount < 10) {
       this.spawnCollectibles(5, 'fireball');
@@ -249,9 +254,15 @@ export class GameRoom {
     if (this.invincibilityRespawnCooldown > 0) {
       this.invincibilityRespawnCooldown = Math.max(0, this.invincibilityRespawnCooldown - dt);
     }
+    if (this.speedBoostRespawnCooldown > 0) {
+      this.speedBoostRespawnCooldown = Math.max(0, this.speedBoostRespawnCooldown - dt);
+    }
 
     if (invincibilityCount === 0 && this.invincibilityRespawnCooldown <= 0) {
       this.spawnCollectibles(1, 'invincibility');
+    }
+    if (speedBoostCount < 5 && this.speedBoostRespawnCooldown <= 0) {
+      this.spawnCollectibles(1, 'speed');
     }
   }
 
@@ -267,6 +278,9 @@ export class GameRoom {
     this.players.forEach(p => {
       if (p.invincibleUntil > 0 && p.invincibleUntil <= now) {
         p.invincibleUntil = 0;
+      }
+      if (p.speedBoostUntil > 0 && p.speedBoostUntil <= now) {
+        p.speedBoostUntil = 0;
       }
 
       if (p.isDead) {
@@ -309,7 +323,7 @@ export class GameRoom {
       }
 
       const oldCell = this.getCellAt(p.x, p.y);
-      const moveDist = PLAYER_SPEED * dt;
+      const moveDist = PLAYER_SPEED * this.getPlayerSpeedMultiplier(p, now) * dt;
 
       const cx = Math.floor(p.x / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
       const cy = Math.floor(p.y / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
@@ -370,9 +384,12 @@ export class GameRoom {
         if (dx * dx + dy * dy < pickupRadiusSq) {
           if (col.type === 'fireball') {
             p.fireballs++;
-          } else {
+          } else if (col.type === 'invincibility') {
             p.invincibleUntil = Math.max(p.invincibleUntil, now) + INVINCIBILITY_DURATION * 1000;
             this.invincibilityRespawnCooldown = INVINCIBILITY_RESPAWN_DELAY;
+          } else {
+            p.speedBoostUntil = Math.max(p.speedBoostUntil, now) + SPEED_BOOST_DURATION * 1000;
+            this.speedBoostRespawnCooldown = SPEED_BOOST_RESPAWN_DELAY;
           }
           toDelete.push(colId);
         }
@@ -403,8 +420,12 @@ export class GameRoom {
           a.newCell.y === b.oldCell.y;
 
         if (collidedInSameCell || swappedCells) {
-          headOnCollisionIds.add(a.player.id);
-          headOnCollisionIds.add(b.player.id);
+          if (!this.isHeadOnProtectedByOwnTerritory(a.player, a.oldCellKey, a.cellKey)) {
+            headOnCollisionIds.add(a.player.id);
+          }
+          if (!this.isHeadOnProtectedByOwnTerritory(b.player, b.oldCellKey, b.cellKey)) {
+            headOnCollisionIds.add(b.player.id);
+          }
         }
       }
     }
@@ -645,6 +666,7 @@ export class GameRoom {
     p.finalScore = 0;
     p.finalSurvivalSeconds = 0;
     p.invincibleUntil = 0;
+    p.speedBoostUntil = 0;
     p.spawnedAt = Date.now();
 
     const { x, y } = this.findSpawnLocation();
@@ -728,6 +750,7 @@ export class GameRoom {
   private killPlayer(pid: string, reason: string, killerId?: string) {
     const p = this.players.get(pid);
     if (!p || p.isDead) return;
+    if (this.isProtectedByOwnTerritory(p, reason)) return;
     if (this.isInvincibilityProtected(p, reason)) return;
 
     p.updateScore();
@@ -742,18 +765,22 @@ export class GameRoom {
     }
 
     p.invincibleUntil = 0;
+    p.speedBoostUntil = 0;
+    if (p.isBot) {
+      p.takeovers = 0;
+    }
     p.isDead = true;
     p.deathAlpha = 1.0;
     p.deathReason = reason;
     this.updateAllScores();
 
-    this.broadcast({ type: 'kill', playerId: pid, reason });
+    this.broadcast({ type: 'kill', playerId: pid, reason, killerId });
   }
   private spawnBots(count: number) {
     for (let i = 0; i < count; i++) {
-      const botId = `bot_${i}`;
+      const botId = `bot_${this.nextBotIndex++}`;
       const name = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
-      const color = PLAYER_COLORS[(i + 1) % PLAYER_COLORS.length];
+      const color = PLAYER_COLORS[this.nextBotIndex % PLAYER_COLORS.length];
 
       const { x, y } = this.findSpawnLocation();
       const bot = new PlayerState(botId, name, color, x, y, true);
@@ -764,6 +791,20 @@ export class GameRoom {
       bot.nextDirection = dir;
 
       this.players.set(botId, bot);
+      this.markTerritoryDirty(botId);
+    }
+  }
+
+  private removeBots(count: number) {
+    const botIds = Array.from(this.players.values())
+      .filter(player => player.isBot)
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(0, count)
+      .map(player => player.id);
+
+    for (const botId of botIds) {
+      this.players.delete(botId);
+      this.botPhases.delete(botId);
     }
   }
 
@@ -782,9 +823,49 @@ export class GameRoom {
     return p.invincibleUntil > now;
   }
 
+  private getPlayerSpeedMultiplier(p: PlayerState, now: number = Date.now()) {
+    return p.speedBoostUntil > now ? SPEED_BOOST_MULTIPLIER : 1;
+  }
+
+  private getHumanPlayerCount() {
+    return Array.from(this.players.values()).filter(player => !player.isBot).length;
+  }
+
+  private getTargetBotCount() {
+    const humanCount = this.getHumanPlayerCount();
+    if (humanCount <= 0) {
+      return 0;
+    }
+    return Math.max(0, 4 - humanCount);
+  }
+
+  private reconcileBotCount() {
+    const currentBots = Array.from(this.players.values()).filter(player => player.isBot).length;
+    const targetBots = this.getTargetBotCount();
+
+    if (currentBots < targetBots) {
+      this.spawnBots(targetBots - currentBots);
+    } else if (currentBots > targetBots) {
+      this.removeBots(currentBots - targetBots);
+    }
+  }
+
   private isInvincibilityProtected(p: PlayerState, reason: string) {
     if (!this.isPlayerInvincible(p)) return false;
     return reason !== 'all-territory-lost';
+  }
+
+  private isProtectedByOwnTerritory(p: PlayerState, reason: string) {
+    if (reason === 'wall-collision' || reason === 'all-territory-lost') {
+      return false;
+    }
+
+    const cell = this.getCellAt(p.x, p.y);
+    return p.territory.has(`${cell.x},${cell.y}`);
+  }
+
+  private isHeadOnProtectedByOwnTerritory(p: PlayerState, oldCellKey: string, newCellKey: string) {
+    return p.territory.has(oldCellKey) || p.territory.has(newCellKey);
   }
 
   private getCellAt(x: number, y: number): Point {
@@ -842,6 +923,7 @@ export class GameRoom {
       score: p.score,
       takeovers: p.takeovers,
       invincibleTimeLeft: Math.max(0, (p.invincibleUntil - Date.now()) / 1000),
+      speedBoostTimeLeft: Math.max(0, (p.speedBoostUntil - Date.now()) / 1000),
       fireballs: p.fireballs,
       trailType: p.trailType,
       isBot: p.isBot
@@ -901,6 +983,6 @@ export class GameRoom {
   }
 
   getPlayerCount(): number {
-    return Array.from(this.players.values()).filter(p => !p.isBot).length;
+    return this.getHumanPlayerCount();
   }
 }

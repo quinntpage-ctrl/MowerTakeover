@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GameCanvas from "@/components/game/GameCanvas";
 import MowerCustomizerPreview from "@/components/game/MowerCustomizerPreview";
-import { Joystick, Flame, Star, Smile, Crown, Info, ArrowLeft, Crosshair, Skull, Shield, Volume2, VolumeX } from "lucide-react";
-import { PLAYER_COLORS, type TrailType } from "@shared/game/Constants";
+import { Joystick, Flame, Star, Smile, Crown, Info, ArrowLeft, Skull, Shield, Volume2, VolumeX, Share2, Copy, Download, Zap, Shuffle, Sparkles, Heart, Leaf, Gem, Music2, Snowflake } from "lucide-react";
+import { PLAYER_COLORS, TRAIL_TYPES, type TrailType } from "@shared/game/Constants";
 import type { LeaderboardEntry } from "@shared/game/Protocol";
 import { soundEffects } from "@/lib/audio/sound";
+import { createScorecardAsset, createShareText } from "@/lib/share/scorecard";
 
 function GrassIcon({ className }: { className?: string }) {
   return (
@@ -73,6 +74,54 @@ function BananaIcon({ className }: { className?: string }) {
   );
 }
 
+function BubbleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="13" r="5.5" />
+      <circle cx="16.5" cy="8.5" r="2.5" />
+      <path d="M7.2 11.3h.01" />
+      <path d="M15.7 7.2h.01" />
+    </svg>
+  );
+}
+
+const TRAIL_OPTIONS = [
+  { value: "grass", accent: "border-primary bg-primary/10 text-primary" },
+  { value: "star", accent: "border-yellow-400 bg-yellow-400/10 text-yellow-500" },
+  { value: "smile", accent: "border-blue-500 bg-blue-500/10 text-blue-500" },
+  { value: "money", accent: "border-emerald-500 bg-emerald-500/10 text-emerald-600" },
+  { value: "bubble", accent: "border-cyan-400 bg-cyan-400/10 text-cyan-500" },
+  { value: "confetti", accent: "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-500" },
+  { value: "heart", accent: "border-rose-400 bg-rose-400/10 text-rose-500" },
+  { value: "bolt", accent: "border-yellow-300 bg-yellow-300/10 text-yellow-500" },
+  { value: "leaf", accent: "border-green-500 bg-green-500/10 text-green-600" },
+  { value: "gem", accent: "border-cyan-500 bg-cyan-500/10 text-cyan-600" },
+  { value: "music", accent: "border-violet-500 bg-violet-500/10 text-violet-500" },
+  { value: "snow", accent: "border-slate-300 bg-slate-200/20 text-slate-500" },
+] as const satisfies ReadonlyArray<{ value: TrailType; accent: string }>;
+
+function pickRandomItem<T>(items: readonly T[], exclude?: T) {
+  if (items.length === 0) {
+    throw new Error("Cannot pick a random item from an empty list");
+  }
+  if (items.length === 1 || exclude === undefined) {
+    return items[Math.floor(Math.random() * items.length)]!;
+  }
+
+  const filtered = items.filter((item) => item !== exclude);
+  const pool = filtered.length > 0 ? filtered : items;
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}
+
 function TrailChoiceIcon({
   trailType,
   className,
@@ -81,31 +130,84 @@ function TrailChoiceIcon({
   className?: string;
 }) {
   if (trailType === "grass") return <GrassIcon className={className} />;
-  if (trailType === "flame") return <Flame className={className} />;
   if (trailType === "star") return <Star className={className} />;
   if (trailType === "smile") return <Smile className={className} />;
   if (trailType === "money") return <MoneyIcon className={className} />;
-  return <BananaIcon className={className} />;
+  if (trailType === "bubble") return <BubbleIcon className={className} />;
+  if (trailType === "confetti") return <Sparkles className={className} />;
+  if (trailType === "heart") return <Heart className={className} />;
+  if (trailType === "bolt") return <Zap className={className} />;
+  if (trailType === "leaf") return <Leaf className={className} />;
+  if (trailType === "gem") return <Gem className={className} />;
+  if (trailType === "music") return <Music2 className={className} />;
+  return <Snowflake className={className} />;
 }
 
 function getTrailLabel(trailType: TrailType) {
   switch (trailType) {
     case "grass":
       return "Clips";
-    case "flame":
-      return "Flame";
     case "star":
       return "Stars";
     case "smile":
       return "Smiles";
     case "money":
       return "Money";
-    case "banana":
-      return "Bananas";
+    case "bubble":
+      return "Bubbles";
+    case "confetti":
+      return "Confetti";
+    case "heart":
+      return "Hearts";
+    case "bolt":
+      return "Bolts";
+    case "leaf":
+      return "Leaves";
+    case "gem":
+      return "Gems";
+    case "music":
+      return "Music";
+    case "snow":
+      return "Snow";
   }
 }
 
 const HOME_UPDATES = [
+  {
+    date: "Mar 10, 2026",
+    title: "Trail Pack Refresh",
+    description: "Flames and bananas are out. Six new trails are in: hearts, bolts, leaves, gems, music notes, and snowflakes.",
+  },
+  {
+    date: "Mar 10, 2026",
+    title: "Tutorial Refresh",
+    description: "The tutorial now spells out the rules, controls, pickups, and win condition in a clearer step-by-step format.",
+  },
+  {
+    date: "Mar 10, 2026",
+    title: "Dynamic Bots",
+    description: "Bot count now scales with real players: 3 bots for 1 player, 2 for 2 players, 1 for 3 players, and no bots once 4 real players are in.",
+  },
+  {
+    date: "Mar 10, 2026",
+    title: "Randomized Looks",
+    description: "Players now start with randomized mower colors and trails by default, and the customizer has a one-tap reroll button with more colors and trail styles.",
+  },
+  {
+    date: "Mar 10, 2026",
+    title: "Speed Boost Drops",
+    description: "Rare green speed pickups now give your mower a short 4-second burst, with a pickup sound and live countdown in the HUD.",
+  },
+  {
+    date: "Mar 10, 2026",
+    title: "Kill + Death Audio",
+    description: "You now get a confirmation sound when you eliminate someone and a separate wipeout sound when your mower dies.",
+  },
+  {
+    date: "Mar 10, 2026",
+    title: "Scorecard Sharing",
+    description: "Match results now have a share button with a downloadable scorecard, native share support, and one-tap links for major social platforms.",
+  },
   {
     date: "Mar 9, 2026",
     title: "Head-On Collisions",
@@ -120,11 +222,6 @@ const HOME_UPDATES = [
     date: "Mar 9, 2026",
     title: "First Place Highlight",
     description: "The current leader now gets a big golden highlight around their mower so first place is obvious in the arena.",
-  },
-  {
-    date: "Mar 9, 2026",
-    title: "Money + Banana Trails",
-    description: "Two new trail styles are in the customizer with matching live in-game particle effects and preview animation.",
   },
   {
     date: "Mar 9, 2026",
@@ -198,14 +295,31 @@ export default function Home() {
   const [survivedSeconds, setSurvivedSeconds] = useState(0);
   const [takeovers, setTakeovers] = useState(0);
   const [invincibleTimeLeft, setInvincibleTimeLeft] = useState(0);
+  const [speedBoostTimeLeft, setSpeedBoostTimeLeft] = useState(0);
   const [fireballs, setFireballs] = useState(0);
   const [soundsMuted, setSoundsMuted] = useState(() => soundEffects.isMuted());
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [selectedColor, setSelectedColor] = useState(PLAYER_COLORS[0]);
-  const [trailType, setTrailType] = useState<TrailType>("grass");
+  const [selectedColor, setSelectedColor] = useState(() => pickRandomItem(PLAYER_COLORS));
+  const [trailType, setTrailType] = useState<TrailType>(() => pickRandomItem(TRAIL_TYPES));
+  const [lookMode, setLookMode] = useState<"random" | "custom">("random");
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [shareCardUrl, setShareCardUrl] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
+  const [isPreparingShare, setIsPreparingShare] = useState(false);
   const shootRef = useRef<(() => void) | null>(null);
   const previousFireballsRef = useRef(0);
   const previousInvincibleRef = useRef(0);
+  const previousSpeedBoostRef = useRef(0);
+  const shareCardBlobRef = useRef<Blob | null>(null);
+
+  const randomizeLook = () => {
+    const nextColor = pickRandomItem(PLAYER_COLORS, selectedColor);
+    const nextTrail = pickRandomItem(TRAIL_TYPES, trailType);
+    setSelectedColor(nextColor);
+    setTrailType(nextTrail);
+    setLookMode("random");
+    return { nextColor, nextTrail };
+  };
 
   const startGame = (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,6 +332,7 @@ export default function Home() {
     setSurvivedSeconds(0);
     setTakeovers(0);
     setInvincibleTimeLeft(0);
+    setSpeedBoostTimeLeft(0);
     setFireballs(0);
   };
 
@@ -235,6 +350,119 @@ export default function Home() {
     setSoundsMuted(nextMuted);
     if (!nextMuted) {
       soundEffects.playClick();
+    }
+  };
+
+  const sharePayload = {
+    playerName: playerName.trim() || "Anonymous",
+    score: finalScore,
+    survivedLabel: formatSurvivalTime(survivedSeconds),
+    takeovers,
+    deathReason: deathReason || "a wipeout",
+    color: selectedColor,
+    trailType,
+    trailLabel: getTrailLabel(trailType),
+  } as const;
+
+  const shareUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const shareText = createShareText(sharePayload);
+  const shareTargets = [
+    { label: "X", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}` },
+    { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}` },
+    { label: "WhatsApp", href: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}` },
+    { label: "Telegram", href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}` },
+    { label: "Reddit", href: `https://www.reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(shareText)}` },
+    { label: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}` },
+  ];
+
+  const prepareShareCard = async () => {
+    if (shareCardBlobRef.current && shareCardUrl) {
+      return { blob: shareCardBlobRef.current, url: shareCardUrl };
+    }
+
+    setIsPreparingShare(true);
+    try {
+      const nextAsset = await createScorecardAsset(sharePayload);
+      if (shareCardUrl) {
+        URL.revokeObjectURL(shareCardUrl);
+      }
+      shareCardBlobRef.current = nextAsset.blob;
+      setShareCardUrl(nextAsset.url);
+      return nextAsset;
+    } finally {
+      setIsPreparingShare(false);
+    }
+  };
+
+  const handleOpenShareSheet = async () => {
+    soundEffects.playClick();
+    setShareStatus("");
+    setShareSheetOpen(true);
+    try {
+      await prepareShareCard();
+    } catch {
+      setShareStatus("Could not generate the scorecard image.");
+    }
+  };
+
+  const handleNativeShare = async () => {
+    soundEffects.playClick();
+    if (typeof navigator === "undefined" || typeof navigator.share !== "function") {
+      setShareStatus("Native share is not available here. Use one of the share buttons below.");
+      return;
+    }
+
+    try {
+      const asset = await prepareShareCard();
+      const file = new File([asset.blob], "mower-takeover-scorecard.png", { type: "image/png" });
+      const shareData = {
+        title: "Mower Takeover Scorecard",
+        text: shareText,
+        url: shareUrl,
+      };
+
+      if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+        await navigator.share({ ...shareData, files: [file] });
+      } else {
+        await navigator.share(shareData);
+      }
+      setShareStatus("Scorecard shared.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+      setShareStatus("Share did not go through. Use copy, download, or a social button instead.");
+    }
+  };
+
+  const handleCopyShareText = async () => {
+    soundEffects.playClick();
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      setShareStatus("Copy is not available on this device.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${shareText} ${shareUrl}`.trim());
+      setShareStatus("Result copied to your clipboard.");
+    } catch {
+      setShareStatus("Copy failed. Try the download button instead.");
+    }
+  };
+
+  const handleDownloadScorecard = async () => {
+    soundEffects.playClick();
+    try {
+      const asset = await prepareShareCard();
+      const link = document.createElement("a");
+      link.href = asset.url;
+      link.download = "mower-takeover-scorecard.png";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setShareStatus("Scorecard downloaded.");
+    } catch {
+      setShareStatus("Download failed. Try again.");
     }
   };
 
@@ -264,6 +492,40 @@ export default function Home() {
     previousInvincibleRef.current = invincibleTimeLeft;
   }, [invincibleTimeLeft, gameState]);
 
+  useEffect(() => {
+    if (gameState !== "playing") {
+      previousSpeedBoostRef.current = speedBoostTimeLeft;
+      return;
+    }
+
+    if (speedBoostTimeLeft > previousSpeedBoostRef.current + 0.5) {
+      soundEffects.playSpeedBoostPickup();
+    }
+    previousSpeedBoostRef.current = speedBoostTimeLeft;
+  }, [speedBoostTimeLeft, gameState]);
+
+  useEffect(() => {
+    if (gameState === "gameover") {
+      return;
+    }
+
+    setShareSheetOpen(false);
+    setShareStatus("");
+    shareCardBlobRef.current = null;
+    if (shareCardUrl) {
+      URL.revokeObjectURL(shareCardUrl);
+      setShareCardUrl("");
+    }
+  }, [gameState, shareCardUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (shareCardUrl) {
+        URL.revokeObjectURL(shareCardUrl);
+      }
+    };
+  }, [shareCardUrl]);
+
   return (
     <div className="w-full h-full overflow-hidden bg-grass-pattern relative flex items-stretch justify-stretch md:items-center md:justify-center font-sans" style={{ height: '100dvh' }}>
       <button
@@ -275,7 +537,7 @@ export default function Home() {
       >
         {soundsMuted ? <VolumeX className="w-5 h-5 text-foreground" /> : <Volume2 className="w-5 h-5 text-foreground" />}
       </button>
-      
+
       {gameState === "playing" && (
         <GameCanvas 
           playerName={playerName} 
@@ -286,6 +548,7 @@ export default function Home() {
           onScoreUpdate={setScore}
           onTakeoversUpdate={setTakeovers}
           onInvincibilityUpdate={setInvincibleTimeLeft}
+          onSpeedBoostUpdate={setSpeedBoostTimeLeft}
           onLeaderboardUpdate={setLeaderboard}
           onFireballsUpdate={setFireballs}
           shootRef={shootRef}
@@ -358,6 +621,18 @@ export default function Home() {
                     <div className="flex items-baseline gap-1.5 md:gap-2">
                         <span className="text-lg md:text-2xl font-display text-sky-500">{invincibleTimeLeft.toFixed(1)}s</span>
                         <span className="text-xs md:text-sm font-sans text-muted-foreground uppercase tracking-widest">Invincible</span>
+                    </div>
+                </div>
+            )}
+
+            {speedBoostTimeLeft > 0 && (
+                <div className="glass-panel rounded-full px-3 md:px-5 py-1.5 md:py-2 shadow-lg flex items-center gap-2 md:gap-3 animate-in slide-in-from-left-4 fade-in">
+                    <div className="flex items-center justify-center w-6 h-6 md:w-8 md:h-8 rounded-full bg-lime-100 shadow-inner">
+                        <Zap className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-lime-600" />
+                    </div>
+                    <div className="flex items-baseline gap-1.5 md:gap-2">
+                        <span className="text-lg md:text-2xl font-display text-lime-600">{speedBoostTimeLeft.toFixed(1)}s</span>
+                        <span className="text-xs md:text-sm font-sans text-muted-foreground uppercase tracking-widest">Boost</span>
                     </div>
                 </div>
             )}
@@ -435,7 +710,9 @@ export default function Home() {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-left">
                   <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Customize Mower</div>
-                  <div className="mt-0.5 text-sm font-bold text-foreground">Preview your selected mower</div>
+                  <div className="mt-0.5 text-sm font-bold text-foreground">
+                    {lookMode === "random" ? "Randomized by default" : "Preview your selected mower"}
+                  </div>
                 </div>
                 <div className="w-28 md:w-32 overflow-hidden rounded-xl border border-white/70 bg-white/35 shadow-inner shrink-0">
                   <MowerCustomizerPreview color={selectedColor} trailType={trailType} variant="button" />
@@ -516,30 +793,30 @@ export default function Home() {
               <div className="space-y-3 md:space-y-4">
                 <div className="flex gap-3 items-start">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-sm font-display text-green-700">1</div>
-                  <div>
-                    <h4 className="font-bold text-sm md:text-base">Steer your mower out of your base</h4>
-                    <p className="text-xs md:text-sm text-muted-foreground">Use <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">WASD</kbd> or <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">Arrows</kbd> on desktop. On mobile, <strong>swipe</strong> to turn.</p>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm md:text-base">Start inside your own safe territory</h4>
+                    <p className="text-xs md:text-sm text-muted-foreground">Use <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">WASD</kbd> or <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">Arrows</kbd> on desktop. On mobile, <strong>swipe</strong> to change direction. You are safest while driving inside your own land.</p>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-display text-primary">2</div>
-                  <div>
-                    <h4 className="font-bold text-sm md:text-base">Draw a loop outside your territory</h4>
-                    <p className="text-xs md:text-sm text-muted-foreground">The line behind you is vulnerable. If another mower touches it before you get back, you die.</p>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm md:text-base">Leave your land to start a vulnerable trail</h4>
+                    <p className="text-xs md:text-sm text-muted-foreground">The moment you drive outside your own territory, the line behind your mower becomes exposed. If another mower hits that trail before you reconnect, you die immediately.</p>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-display text-emerald-700">3</div>
-                  <div>
-                    <h4 className="font-bold text-sm md:text-base">Reconnect to your land to capture the whole enclosed area</h4>
-                    <p className="text-xs md:text-sm text-muted-foreground">Small safe loops are better than greedy ones. Big loops are worth more but are easier to punish.</p>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm md:text-base">Reconnect that trail to capture everything inside the loop</h4>
+                    <p className="text-xs md:text-sm text-muted-foreground">Once your trail touches your own territory again, the enclosed area becomes yours. Small loops are safer. Large loops score more, but they give enemies more time to punish you.</p>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-display text-amber-700">4</div>
-                  <div>
-                    <h4 className="font-bold text-sm md:text-base">Use pickups to swing fights</h4>
-                    <p className="text-xs md:text-sm text-muted-foreground">Fireballs burn land and kill mowers. Blue shields give you <strong>8 seconds</strong> of invincibility to make risky plays.</p>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm md:text-base">Use pickups at the right time</h4>
+                    <p className="text-xs md:text-sm text-muted-foreground">Fireballs damage enemy land and can kill mowers. Blue shields give you <strong>8 seconds</strong> of invincibility. Yellow lightning bolts give you a short speed burst so you can finish a loop or chase a trail cut.</p>
                   </div>
                 </div>
               </div>
@@ -552,7 +829,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-bold text-base md:text-lg mb-0.5 md:mb-1">How You Die</h3>
-                  <p className="text-muted-foreground text-xs md:text-sm">Enemy hits your trail, you hit your own trail, wall collision, or you get blasted by a fireball.</p>
+                  <p className="text-muted-foreground text-xs md:text-sm">You die if an enemy hits your exposed trail, you hit your own exposed trail, you slam into the wall, a fireball takes you out, or you lose a head-on collision outside your protection.</p>
                 </div>
               </div>
 
@@ -562,12 +839,16 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-bold text-base md:text-lg mb-0.5 md:mb-1">How You Fight Back</h3>
-                  <p className="text-muted-foreground text-xs md:text-sm">Collect fireballs and press <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">SPACE</kbd> or tap the orange button on mobile.</p>
+                  <p className="text-muted-foreground text-xs md:text-sm">Cut enemy trails, force risky turns, and collect fireballs. Shoot with <kbd className="bg-white/80 px-1 py-0.5 rounded shadow-sm text-xs mx-0.5">SPACE</kbd> on desktop or tap the orange button on mobile.</p>
                 </div>
               </div>
             </div>
 
             <div className="rounded-2xl border border-white bg-white/50 p-4 md:p-5">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.24em] text-primary/70 mb-2">Winning Condition</div>
+              <p className="text-xs md:text-sm font-semibold text-muted-foreground mb-4">
+                First place is the mower with the most captured land. The scoreboard in the top-right shows who is leading at all times.
+              </p>
               <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.24em] text-primary/70 mb-2">Winning Tip</div>
               <p className="text-xs md:text-sm font-semibold text-muted-foreground">
                 Early game: make quick small captures. Mid game: look for exposed enemy trails. Late game: defend your edges and only go wide when you have invincibility or a fireball advantage.
@@ -613,8 +894,34 @@ export default function Home() {
               <span className="text-primary">{getTrailLabel(trailType)}</span>
             </div>
 
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                soundEffects.playClick();
+                randomizeLook();
+              }}
+              className="w-full h-11 rounded-xl border-2 border-primary/20 bg-white/60 font-bold"
+            >
+              <Shuffle className="mr-2 h-4 w-4" />
+              Randomize Look
+            </Button>
+
             <div className="rounded-2xl border border-white bg-white/45 p-4 md:p-5">
-              <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary/70">Color</div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary/70">Color</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setSelectedColor(pickRandomItem(PLAYER_COLORS, selectedColor));
+                    setLookMode("custom");
+                  }}
+                  className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary/80"
+                >
+                  Randomize Color
+                </button>
+              </div>
               <div className="mt-3 flex flex-wrap gap-2 md:gap-3 justify-center">
                 {PLAYER_COLORS.map((color) => (
                   <button
@@ -623,6 +930,7 @@ export default function Home() {
                     onClick={() => {
                       soundEffects.playClick();
                       setSelectedColor(color);
+                      setLookMode("custom");
                     }}
                     className={`h-10 w-10 md:h-12 md:w-12 rounded-full border-4 border-white shadow-lg transition-transform ${selectedColor === color ? "scale-110 ring-4 ring-primary/25" : "hover:scale-105"}`}
                     style={{ backgroundColor: color }}
@@ -633,16 +941,22 @@ export default function Home() {
             </div>
 
             <div className="rounded-2xl border border-white bg-white/45 p-4 md:p-5">
-              <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary/70">Trail</div>
-              <div className="mt-3 grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3">
-                {([
-                  { value: "grass", accent: "border-primary bg-primary/10 text-primary" },
-                  { value: "flame", accent: "border-orange-500 bg-orange-500/10 text-orange-500" },
-                  { value: "star", accent: "border-yellow-400 bg-yellow-400/10 text-yellow-500" },
-                  { value: "smile", accent: "border-blue-500 bg-blue-500/10 text-blue-500" },
-                  { value: "money", accent: "border-emerald-500 bg-emerald-500/10 text-emerald-600" },
-                  { value: "banana", accent: "border-amber-400 bg-amber-400/10 text-amber-500" },
-                ] as const).map((option) => {
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary/70">Trail</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setTrailType(pickRandomItem(TRAIL_TYPES, trailType));
+                    setLookMode("custom");
+                  }}
+                  className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary/80"
+                >
+                  Randomize Trail
+                </button>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
+                {TRAIL_OPTIONS.map((option) => {
                   const active = trailType === option.value;
                   return (
                     <button
@@ -651,6 +965,7 @@ export default function Home() {
                       onClick={() => {
                         soundEffects.playClick();
                         setTrailType(option.value);
+                        setLookMode("custom");
                       }}
                       className={`rounded-xl border-2 px-3 py-3 text-center transition-all ${active ? option.accent : "border-border/50 bg-white/60 text-muted-foreground hover:bg-white/85"}`}
                     >
@@ -741,6 +1056,17 @@ export default function Home() {
             </p>
           </div>
 
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleOpenShareSheet}
+            className="w-full h-11 md:h-14 text-base md:text-lg font-display rounded-xl md:rounded-2xl shadow-sm border-2 border-primary/20 hover:border-primary/50 text-foreground bg-white/60 mb-3"
+            data-testid="button-share-scorecard"
+          >
+            <Share2 className="mr-2 h-4 w-4 md:h-5 md:w-5" />
+            Share Scorecard
+          </Button>
+
           <Button 
             onClick={() => {
               soundEffects.playClick();
@@ -751,6 +1077,103 @@ export default function Home() {
           >
             Play Again
           </Button>
+        </div>
+      )}
+
+      {gameState === "gameover" && shareSheetOpen && (
+        <div className="absolute inset-0 z-20 bg-black/25 p-4 backdrop-blur-sm flex items-center justify-center">
+          <div className="glass-panel w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl border-2 border-white/50 p-5 md:p-8 shadow-2xl">
+            <div className="flex items-center mb-5 relative">
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setShareSheetOpen(false);
+                  setShareStatus("");
+                }}
+                className="absolute left-0 p-2 rounded-full hover:bg-black/5 transition-colors"
+                aria-label="Close share sheet"
+              >
+                <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-foreground/70" />
+              </button>
+              <h2 className="text-2xl md:text-3xl font-display text-primary w-full text-center">Share Scorecard</h2>
+            </div>
+
+            <div className="rounded-2xl border border-white bg-white/45 p-3 md:p-4">
+              {shareCardUrl ? (
+                <img
+                  src={shareCardUrl}
+                  alt="Scorecard preview"
+                  className="w-full rounded-xl border border-white/70 shadow-lg"
+                />
+              ) : (
+                <div className="flex min-h-48 items-center justify-center rounded-xl border border-dashed border-white/70 bg-white/35 text-sm font-semibold text-muted-foreground">
+                  {isPreparingShare ? "Building scorecard..." : "Scorecard preview unavailable"}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Button
+                type="button"
+                onClick={handleNativeShare}
+                className="h-11 rounded-xl bg-primary font-display hover:bg-primary/90"
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share Everywhere
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleDownloadScorecard}
+                className="h-11 rounded-xl border-2 border-primary/20 bg-white/60"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download Card
+              </Button>
+            </div>
+
+            <div className="mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCopyShareText}
+                className="w-full h-11 rounded-xl border-2 border-primary/20 bg-white/60"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copy Result Text
+              </Button>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-white bg-white/45 p-4">
+              <div className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary/70">
+                Post It
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3">
+                {shareTargets.map((target) => (
+                  <a
+                    key={target.label}
+                    href={target.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-xl border-2 border-primary/20 bg-white/60 px-3 py-3 text-center text-sm font-bold text-foreground transition-all hover:border-primary/45 hover:bg-white/85"
+                    onClick={() => {
+                      soundEffects.playClick();
+                    }}
+                  >
+                    {target.label}
+                  </a>
+                ))}
+              </div>
+              <p className="mt-3 text-xs font-semibold text-muted-foreground">
+                Native share can send the actual scorecard image on supported phones. Social buttons use your live game link, and you can attach the downloaded card anywhere else.
+              </p>
+            </div>
+
+            {shareStatus && (
+              <p className="mt-4 text-sm font-semibold text-center text-foreground/75">{shareStatus}</p>
+            )}
+          </div>
         </div>
       )}
     </div>

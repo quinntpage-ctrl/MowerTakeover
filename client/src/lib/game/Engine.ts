@@ -7,6 +7,7 @@ interface GameCallbacks {
   onScoreUpdate: (score: number) => void;
   onTakeoversUpdate?: (count: number) => void;
   onInvincibilityUpdate?: (seconds: number) => void;
+  onSpeedBoostUpdate?: (seconds: number) => void;
   onLeaderboardUpdate: (board: LeaderboardEntry[]) => void;
   onFireballsUpdate?: (count: number) => void;
 }
@@ -80,6 +81,7 @@ export class GameEngine {
   private logoImage: HTMLImageElement;
   private terrainCanvas: HTMLCanvasElement | null = null;
   private leaderId: string | null = null;
+  private showSpeedBoostPointer: boolean = false;
 
   private displayPositions: Map<string, { x: number; y: number }> = new Map();
   private playerSnapshots: Map<string, PlayerSnapshot> = new Map();
@@ -99,6 +101,10 @@ export class GameEngine {
 
   setLocalPlayerId(id: string) {
     this.localPlayerId = id;
+  }
+
+  setShowSpeedBoostPointer(show: boolean) {
+    this.showSpeedBoostPointer = show;
   }
 
   applyState(players: PlayerData[], fireballs: FireballData[], collectibles: CollectibleData[]) {
@@ -188,6 +194,7 @@ export class GameEngine {
       this.callbacks.onScoreUpdate(localP.score);
       this.callbacks.onTakeoversUpdate?.(localP.takeovers);
       this.callbacks.onInvincibilityUpdate?.(localP.invincibleTimeLeft);
+      this.callbacks.onSpeedBoostUpdate?.(localP.speedBoostTimeLeft);
       this.callbacks.onFireballsUpdate?.(localP.fireballs);
     }
 
@@ -284,19 +291,7 @@ export class GameEngine {
 
       let vx = 0, vy = 0, px = ip.x, py = ip.y;
 
-      if (p.trailType === 'flame') {
-        if (p.direction === 'UP') { vx = (Math.random()-0.5)*20; vy = 40+Math.random()*40; py += 10; }
-        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*20; vy = -40-Math.random()*40; py -= 10; }
-        else if (p.direction === 'LEFT') { vx = 40+Math.random()*40; vy = (Math.random()-0.5)*20; px += 10; }
-        else { vx = -40-Math.random()*40; vy = (Math.random()-0.5)*20; px -= 10; }
-        const colors = ['#f97316', '#ef4444', '#eab308'];
-        this.particles.push({
-          x: px+(Math.random()-0.5)*15, y: py+(Math.random()-0.5)*15,
-          vx, vy, life: Math.random()*0.4+0.3, maxLife: 0.7,
-          color: colors[Math.floor(Math.random()*colors.length)],
-          size: Math.random()*6+4, rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*5
-        });
-      } else if (p.trailType === 'star') {
+      if (p.trailType === 'star') {
         if (p.direction === 'UP') { vx = (Math.random()-0.5)*30; vy = 30+Math.random()*20; py += 15; }
         else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*30; vy = -30-Math.random()*20; py -= 15; }
         else if (p.direction === 'LEFT') { vx = 30+Math.random()*20; vy = (Math.random()-0.5)*30; px += 15; }
@@ -330,16 +325,101 @@ export class GameEngine {
           size: Math.random()*4+7,
           rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*3, type: 'money'
         });
-      } else if (p.trailType === 'banana') {
-        if (p.direction === 'UP') { vx = (Math.random()-0.5)*18; vy = 14+Math.random()*14; py += 12; }
-        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*18; vy = -14-Math.random()*14; py -= 12; }
-        else if (p.direction === 'LEFT') { vx = 14+Math.random()*14; vy = (Math.random()-0.5)*18; px += 12; }
-        else { vx = -14-Math.random()*14; vy = (Math.random()-0.5)*18; px -= 12; }
+      } else if (p.trailType === 'bubble') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*16; vy = 6+Math.random()*10; py += 10; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*16; vy = -6-Math.random()*10; py -= 10; }
+        else if (p.direction === 'LEFT') { vx = 6+Math.random()*10; vy = (Math.random()-0.5)*16; px += 10; }
+        else { vx = -6-Math.random()*10; vy = (Math.random()-0.5)*16; px -= 10; }
+        this.particles.push({
+          x: px+(Math.random()-0.5)*8, y: py+(Math.random()-0.5)*8,
+          vx, vy, life: Math.random()*0.6+0.55, maxLife: 1.15,
+          color: ['#67e8f9', '#93c5fd', '#bfdbfe'][Math.floor(Math.random()*3)],
+          size: Math.random()*4+6,
+          rotation: 0, vRot: 0, type: 'bubble'
+        });
+      } else if (p.trailType === 'confetti') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*28; vy = 12+Math.random()*18; py += 10; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*28; vy = -12-Math.random()*18; py -= 10; }
+        else if (p.direction === 'LEFT') { vx = 12+Math.random()*18; vy = (Math.random()-0.5)*28; px += 10; }
+        else { vx = -12-Math.random()*18; vy = (Math.random()-0.5)*28; px -= 10; }
+        this.particles.push({
+          x: px+(Math.random()-0.5)*10, y: py+(Math.random()-0.5)*10,
+          vx, vy, life: Math.random()*0.45+0.35, maxLife: 0.8,
+          color: ['#f43f5e', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7'][Math.floor(Math.random()*5)],
+          size: Math.random()*4+4,
+          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*8, type: 'confetti'
+        });
+      } else if (p.trailType === 'heart') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*16; vy = 12+Math.random()*10; py += 10; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*16; vy = -12-Math.random()*10; py -= 10; }
+        else if (p.direction === 'LEFT') { vx = 12+Math.random()*10; vy = (Math.random()-0.5)*16; px += 10; }
+        else { vx = -12-Math.random()*10; vy = (Math.random()-0.5)*16; px -= 10; }
         this.particles.push({
           x: px+(Math.random()-0.5)*8, y: py+(Math.random()-0.5)*8,
           vx, vy, life: Math.random()*0.55+0.45, maxLife: 1.0,
-          color: '#facc15', size: Math.random()*3+7,
-          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*2, type: 'banana'
+          color: ['#fb7185', '#f43f5e', '#fda4af'][Math.floor(Math.random()*3)],
+          size: Math.random()*3+7,
+          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*1.2, type: 'heart'
+        });
+      } else if (p.trailType === 'bolt') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*24; vy = 18+Math.random()*18; py += 10; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*24; vy = -18-Math.random()*18; py -= 10; }
+        else if (p.direction === 'LEFT') { vx = 18+Math.random()*18; vy = (Math.random()-0.5)*24; px += 10; }
+        else { vx = -18-Math.random()*18; vy = (Math.random()-0.5)*24; px -= 10; }
+        this.particles.push({
+          x: px+(Math.random()-0.5)*9, y: py+(Math.random()-0.5)*9,
+          vx, vy, life: Math.random()*0.35+0.25, maxLife: 0.6,
+          color: ['#facc15', '#fde047', '#fef08a'][Math.floor(Math.random()*3)],
+          size: Math.random()*3+6,
+          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*4, type: 'bolt'
+        });
+      } else if (p.trailType === 'leaf') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*14; vy = 10+Math.random()*12; py += 10; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*14; vy = -10-Math.random()*12; py -= 10; }
+        else if (p.direction === 'LEFT') { vx = 10+Math.random()*12; vy = (Math.random()-0.5)*14; px += 10; }
+        else { vx = -10-Math.random()*12; vy = (Math.random()-0.5)*14; px -= 10; }
+        this.particles.push({
+          x: px+(Math.random()-0.5)*7, y: py+(Math.random()-0.5)*7,
+          vx, vy, life: Math.random()*0.5+0.45, maxLife: 0.95,
+          color: ['#22c55e', '#4ade80', '#86efac'][Math.floor(Math.random()*3)],
+          size: Math.random()*3+6,
+          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*2.2, type: 'leaf'
+        });
+      } else if (p.trailType === 'gem') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*16; vy = 14+Math.random()*14; py += 10; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*16; vy = -14-Math.random()*14; py -= 10; }
+        else if (p.direction === 'LEFT') { vx = 14+Math.random()*14; vy = (Math.random()-0.5)*16; px += 10; }
+        else { vx = -14-Math.random()*14; vy = (Math.random()-0.5)*16; px -= 10; }
+        this.particles.push({
+          x: px+(Math.random()-0.5)*7, y: py+(Math.random()-0.5)*7,
+          vx, vy, life: Math.random()*0.55+0.4, maxLife: 0.95,
+          color: ['#06b6d4', '#67e8f9', '#a5f3fc'][Math.floor(Math.random()*3)],
+          size: Math.random()*3+6,
+          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*2.4, type: 'gem'
+        });
+      } else if (p.trailType === 'music') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*12; vy = 8+Math.random()*10; py += 10; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*12; vy = -8-Math.random()*10; py -= 10; }
+        else if (p.direction === 'LEFT') { vx = 8+Math.random()*10; vy = (Math.random()-0.5)*12; px += 10; }
+        else { vx = -8-Math.random()*10; vy = (Math.random()-0.5)*12; px -= 10; }
+        this.particles.push({
+          x: px+(Math.random()-0.5)*6, y: py+(Math.random()-0.5)*6,
+          vx, vy, life: Math.random()*0.65+0.4, maxLife: 1.05,
+          color: ['#8b5cf6', '#a78bfa', '#c4b5fd'][Math.floor(Math.random()*3)],
+          size: Math.random()*3+6,
+          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*1.4, type: 'music'
+        });
+      } else if (p.trailType === 'snow') {
+        if (p.direction === 'UP') { vx = (Math.random()-0.5)*10; vy = 6+Math.random()*8; py += 10; }
+        else if (p.direction === 'DOWN') { vx = (Math.random()-0.5)*10; vy = -6-Math.random()*8; py -= 10; }
+        else if (p.direction === 'LEFT') { vx = 6+Math.random()*8; vy = (Math.random()-0.5)*10; px += 10; }
+        else { vx = -6-Math.random()*8; vy = (Math.random()-0.5)*10; px -= 10; }
+        this.particles.push({
+          x: px+(Math.random()-0.5)*6, y: py+(Math.random()-0.5)*6,
+          vx, vy, life: Math.random()*0.7+0.5, maxLife: 1.15,
+          color: ['#e2e8f0', '#ffffff', '#bfdbfe'][Math.floor(Math.random()*3)],
+          size: Math.random()*2+5,
+          rotation: Math.random()*Math.PI*2, vRot: (Math.random()-0.5)*1.6, type: 'snow'
         });
       } else {
         if (p.direction === 'UP') { vx = 80+Math.random()*40; vy = (Math.random()-0.5)*40; px += 10; }
@@ -586,6 +666,110 @@ export class GameEngine {
     }
   }
 
+  private getNearestSpeedBoost(localPos: { x: number; y: number }) {
+    let nearest: CollectibleData | null = null;
+    let nearestDistanceSq = Infinity;
+
+    for (const collectible of this.collectibles) {
+      if (collectible.type !== 'speed') continue;
+      const dx = collectible.x - localPos.x;
+      const dy = collectible.y - localPos.y;
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq < nearestDistanceSq) {
+        nearestDistanceSq = distanceSq;
+        nearest = collectible;
+      }
+    }
+
+    return nearest;
+  }
+
+  private drawLightningBolt(size: number, fillStyle: string, strokeStyle?: string, lineWidth: number = 0) {
+    this.ctx.beginPath();
+    this.ctx.moveTo(-size * 0.16, -size * 0.72);
+    this.ctx.lineTo(size * 0.22, -size * 0.72);
+    this.ctx.lineTo(-size * 0.02, -size * 0.12);
+    this.ctx.lineTo(size * 0.26, -size * 0.12);
+    this.ctx.lineTo(-size * 0.32, size * 0.72);
+    this.ctx.lineTo(-size * 0.08, size * 0.16);
+    this.ctx.lineTo(-size * 0.34, size * 0.16);
+    this.ctx.closePath();
+    this.ctx.fillStyle = fillStyle;
+    this.ctx.fill();
+
+    if (strokeStyle && lineWidth > 0) {
+      this.ctx.strokeStyle = strokeStyle;
+      this.ctx.lineWidth = lineWidth;
+      this.ctx.stroke();
+    }
+  }
+
+  private drawSpeedBoostPointer(localPos: { x: number; y: number }) {
+    if (!this.showSpeedBoostPointer) return;
+
+    const nearest = this.getNearestSpeedBoost(localPos);
+    if (!nearest) return;
+
+    const screenX = nearest.x - this.camera.x + this.width / 2;
+    const screenY = nearest.y - this.camera.y + this.height / 2;
+    const centerX = this.width / 2;
+    const centerY = this.height / 2;
+    const dx = screenX - centerX;
+    const dy = screenY - centerY;
+    const margin = 54;
+    const isVisible =
+      screenX >= margin &&
+      screenX <= this.width - margin &&
+      screenY >= margin &&
+      screenY <= this.height - margin;
+
+    this.ctx.save();
+
+    if (isVisible) {
+      const pulse = 1 + 0.16 * Math.sin(this.lastTimestamp / 140);
+      this.ctx.translate(screenX, screenY);
+
+      this.ctx.strokeStyle = '#ffffff';
+      this.ctx.lineWidth = 3;
+      this.ctx.shadowColor = 'rgba(250, 204, 21, 0.95)';
+      this.ctx.shadowBlur = 18;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, 22 * pulse, 0, Math.PI * 2);
+      this.ctx.stroke();
+
+      this.drawLightningBolt(14 * pulse, '#facc15', '#ffffff', 1.5);
+      this.ctx.shadowBlur = 0;
+    } else {
+      const angle = Math.atan2(dy, dx);
+      const halfWidth = this.width / 2 - margin;
+      const halfHeight = this.height / 2 - margin;
+      const scale = 1 / Math.max(Math.abs(dx) / halfWidth, Math.abs(dy) / halfHeight, 0.0001);
+      const pointerX = centerX + dx * scale;
+      const pointerY = centerY + dy * scale;
+
+      this.ctx.translate(pointerX, pointerY);
+      this.ctx.rotate(angle);
+
+      this.ctx.fillStyle = '#facc15';
+      this.ctx.strokeStyle = '#ffffff';
+      this.ctx.lineWidth = 2;
+      this.ctx.shadowColor = 'rgba(250, 204, 21, 0.95)';
+      this.ctx.shadowBlur = 16;
+      this.ctx.beginPath();
+      this.ctx.moveTo(18, 0);
+      this.ctx.lineTo(-10, -10);
+      this.ctx.lineTo(-2, 0);
+      this.ctx.lineTo(-10, 10);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      this.ctx.shadowBlur = 0;
+    }
+
+    this.ctx.restore();
+  }
+
   private draw() {
     this.ctx.fillStyle = '#f3f4f6';
     this.ctx.fillRect(0, 0, this.width, this.height);
@@ -656,6 +840,40 @@ export class GameEngine {
       drawOuterLogo(WORLD_WIDTH + 150, py, Math.PI / 2);
     }
 
+    for (const p of this.players) {
+      if (p.isDead && p.deathAlpha <= 0) continue;
+      const territory = this.territoryRenderCache.get(p.id);
+
+      this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
+
+      if (territory) {
+        for (const cell of territory.cells) {
+          const cx = cell.x;
+          const cy = cell.y;
+          if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
+              cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
+            this.ctx.fillStyle = p.color + '66';
+            this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            this.ctx.fillStyle = p.color + '33';
+            if (cy % 2 === 0) {
+              this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            }
+          }
+        }
+      }
+    }
+
+    this.claimFlashes.forEach(flash => {
+      if (flash.x * CELL_SIZE >= startX - CELL_SIZE && flash.x * CELL_SIZE <= endX &&
+          flash.y * CELL_SIZE >= startY - CELL_SIZE && flash.y * CELL_SIZE <= endY) {
+        this.ctx.fillStyle = flash.color;
+        this.ctx.globalAlpha = flash.alpha;
+        this.ctx.fillRect(flash.x * CELL_SIZE, flash.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      }
+    });
+
+    this.ctx.globalAlpha = 1.0;
+
     this.collectibles.forEach(col => {
       if (col.x >= startX && col.x <= endX && col.y >= startY && col.y <= endY) {
         this.ctx.save();
@@ -677,7 +895,7 @@ export class GameEngine {
           this.ctx.beginPath();
           this.ctx.arc(0, 0, 4, 0, Math.PI * 2);
           this.ctx.fill();
-        } else {
+        } else if (col.type === 'invincibility') {
           this.ctx.shadowColor = '#38bdf8';
           this.ctx.shadowBlur = 18;
 
@@ -698,6 +916,19 @@ export class GameEngine {
           this.ctx.moveTo(0, -7);
           this.ctx.lineTo(0, 7);
           this.ctx.stroke();
+        } else {
+          const pulse = 1 + 0.12 * Math.sin(this.lastTimestamp / 120);
+          this.ctx.shadowColor = '#facc15';
+          this.ctx.shadowBlur = 28;
+
+          this.ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+          this.ctx.lineWidth = 2.5;
+          this.ctx.beginPath();
+          this.ctx.arc(0, 0, 16 * pulse, 0, Math.PI * 2);
+          this.ctx.stroke();
+
+          this.drawLightningBolt(16 * pulse, '#facc15', '#ffffff', 1.8);
+          this.ctx.shadowBlur = 0;
         }
 
         this.ctx.restore();
@@ -708,26 +939,6 @@ export class GameEngine {
       if (p.isDead && p.deathAlpha <= 0) continue;
 
       const ip = this.getDisplayPos(p);
-      const territory = this.territoryRenderCache.get(p.id);
-
-      this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
-
-      if (territory) {
-        for (const cell of territory.cells) {
-          const cx = cell.x;
-          const cy = cell.y;
-          if (cx * CELL_SIZE >= startX - CELL_SIZE && cx * CELL_SIZE <= endX &&
-              cy * CELL_SIZE >= startY - CELL_SIZE && cy * CELL_SIZE <= endY) {
-            this.ctx.fillStyle = p.color + '66';
-            this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            this.ctx.fillStyle = p.color + '33';
-            if (cy % 2 === 0) {
-              this.ctx.fillRect(cx * CELL_SIZE, cy * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            }
-          }
-        }
-      }
-
       this.ctx.globalAlpha = p.isDead ? Math.max(0, p.deathAlpha) : 1.0;
 
       this.ctx.fillStyle = p.color + 'AA';
@@ -809,17 +1020,6 @@ export class GameEngine {
       this.ctx.globalAlpha = 1.0;
     }
 
-    this.claimFlashes.forEach(flash => {
-      if (flash.x * CELL_SIZE >= startX - CELL_SIZE && flash.x * CELL_SIZE <= endX &&
-          flash.y * CELL_SIZE >= startY - CELL_SIZE && flash.y * CELL_SIZE <= endY) {
-        this.ctx.fillStyle = flash.color;
-        this.ctx.globalAlpha = flash.alpha;
-        this.ctx.fillRect(flash.x * CELL_SIZE, flash.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      }
-    });
-
-    this.ctx.globalAlpha = 1.0;
-
     this.particles.forEach(p => {
       if (p.x >= startX && p.x <= endX && p.y >= startY && p.y <= endY) {
         this.ctx.save();
@@ -873,22 +1073,88 @@ export class GameEngine {
           this.ctx.moveTo(0, -p.size * 0.18);
           this.ctx.lineTo(0, p.size * 0.18);
           this.ctx.stroke();
-        } else if (p.type === 'banana') {
+        } else if (p.type === 'bubble') {
+          this.ctx.fillStyle = `${p.color}55`;
           this.ctx.strokeStyle = p.color;
-          this.ctx.lineWidth = Math.max(2, p.size * 0.32);
-          this.ctx.lineCap = 'round';
+          this.ctx.lineWidth = Math.max(1.5, p.size * 0.12);
           this.ctx.beginPath();
-          this.ctx.arc(0, 0, p.size * 0.55, 0.3, 2.45);
+          this.ctx.arc(0, 0, p.size * 0.55, 0, Math.PI * 2);
+          this.ctx.fill();
           this.ctx.stroke();
 
-          this.ctx.strokeStyle = '#a16207';
-          this.ctx.lineWidth = Math.max(1, p.size * 0.1);
+          this.ctx.fillStyle = '#ffffffAA';
           this.ctx.beginPath();
-          this.ctx.moveTo(-p.size * 0.45, p.size * 0.08);
-          this.ctx.lineTo(-p.size * 0.62, p.size * 0.18);
-          this.ctx.moveTo(p.size * 0.35, p.size * 0.34);
-          this.ctx.lineTo(p.size * 0.5, p.size * 0.48);
+          this.ctx.arc(-p.size * 0.18, -p.size * 0.18, p.size * 0.12, 0, Math.PI * 2);
+          this.ctx.fill();
+        } else if (p.type === 'confetti') {
+          this.ctx.fillStyle = p.color;
+          this.ctx.fillRect(-p.size * 0.4, -p.size * 0.22, p.size * 0.8, p.size * 0.44);
+        } else if (p.type === 'heart') {
+          this.ctx.fillStyle = p.color;
+          this.ctx.beginPath();
+          this.ctx.moveTo(0, p.size * 0.55);
+          this.ctx.bezierCurveTo(p.size * 0.8, p.size * 0.1, p.size * 0.8, -p.size * 0.45, 0, -p.size * 0.1);
+          this.ctx.bezierCurveTo(-p.size * 0.8, -p.size * 0.45, -p.size * 0.8, p.size * 0.1, 0, p.size * 0.55);
+          this.ctx.fill();
+        } else if (p.type === 'bolt') {
+          this.ctx.fillStyle = p.color;
+          this.ctx.beginPath();
+          this.ctx.moveTo(-p.size * 0.2, -p.size * 0.6);
+          this.ctx.lineTo(p.size * 0.25, -p.size * 0.6);
+          this.ctx.lineTo(-p.size * 0.02, -p.size * 0.05);
+          this.ctx.lineTo(p.size * 0.32, -p.size * 0.05);
+          this.ctx.lineTo(-p.size * 0.3, p.size * 0.65);
+          this.ctx.lineTo(-p.size * 0.02, p.size * 0.12);
+          this.ctx.lineTo(-p.size * 0.34, p.size * 0.12);
+          this.ctx.closePath();
+          this.ctx.fill();
+        } else if (p.type === 'leaf') {
+          this.ctx.fillStyle = p.color;
+          this.ctx.beginPath();
+          this.ctx.ellipse(0, 0, p.size * 0.55, p.size * 0.32, Math.PI / 4, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.strokeStyle = '#166534';
+          this.ctx.lineWidth = Math.max(1, p.size * 0.08);
+          this.ctx.beginPath();
+          this.ctx.moveTo(-p.size * 0.28, p.size * 0.18);
+          this.ctx.lineTo(p.size * 0.3, -p.size * 0.22);
           this.ctx.stroke();
+        } else if (p.type === 'gem') {
+          this.ctx.fillStyle = p.color;
+          this.ctx.beginPath();
+          this.ctx.moveTo(0, -p.size * 0.7);
+          this.ctx.lineTo(p.size * 0.55, 0);
+          this.ctx.lineTo(0, p.size * 0.7);
+          this.ctx.lineTo(-p.size * 0.55, 0);
+          this.ctx.closePath();
+          this.ctx.fill();
+          this.ctx.strokeStyle = '#0f766e';
+          this.ctx.lineWidth = Math.max(1, p.size * 0.08);
+          this.ctx.stroke();
+        } else if (p.type === 'music') {
+          this.ctx.fillStyle = p.color;
+          this.ctx.beginPath();
+          this.ctx.arc(-p.size * 0.18, p.size * 0.2, p.size * 0.22, 0, Math.PI * 2);
+          this.ctx.arc(p.size * 0.2, p.size * 0.08, p.size * 0.22, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.strokeStyle = p.color;
+          this.ctx.lineWidth = Math.max(1.6, p.size * 0.12);
+          this.ctx.beginPath();
+          this.ctx.moveTo(-p.size * 0.02, p.size * 0.18);
+          this.ctx.lineTo(-p.size * 0.02, -p.size * 0.55);
+          this.ctx.lineTo(p.size * 0.35, -p.size * 0.42);
+          this.ctx.lineTo(p.size * 0.35, p.size * 0.08);
+          this.ctx.stroke();
+        } else if (p.type === 'snow') {
+          this.ctx.strokeStyle = p.color;
+          this.ctx.lineWidth = Math.max(1.2, p.size * 0.08);
+          for (let i = 0; i < 3; i++) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(-p.size * 0.55, 0);
+            this.ctx.lineTo(p.size * 0.55, 0);
+            this.ctx.stroke();
+            this.ctx.rotate(Math.PI / 3);
+          }
         } else {
           this.ctx.fillStyle = p.color;
           this.ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
@@ -937,5 +1203,9 @@ export class GameEngine {
     });
 
     this.ctx.restore();
+
+    if (lpInterp) {
+      this.drawSpeedBoostPointer(lpInterp);
+    }
   }
 }

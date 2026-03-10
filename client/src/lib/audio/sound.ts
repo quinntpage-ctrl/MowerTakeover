@@ -103,6 +103,24 @@ class SoundEffects {
     }, true);
   }
 
+  playKillConfirm() {
+    this.unlock();
+    this.runWithContext(ctx => {
+      this.scheduleTone(ctx, { freq: 420, endFreq: 620, duration: 0.08, gain: 0.024, type: 'triangle', attack: 0.003, release: 0.05 });
+      this.scheduleTone(ctx, { freq: 620, endFreq: 920, duration: 0.1, gain: 0.028, offset: 0.045, type: 'square', attack: 0.003, release: 0.06 });
+      this.scheduleTone(ctx, { freq: 980, endFreq: 1280, duration: 0.09, gain: 0.016, offset: 0.09, type: 'triangle', attack: 0.002, release: 0.05 });
+    }, true);
+  }
+
+  playDeath() {
+    this.unlock();
+    this.runWithContext(ctx => {
+      this.scheduleTone(ctx, { freq: 360, endFreq: 160, duration: 0.18, gain: 0.03, type: 'sawtooth', attack: 0.002, release: 0.11 });
+      this.scheduleTone(ctx, { freq: 220, endFreq: 90, duration: 0.24, gain: 0.022, offset: 0.035, type: 'square', attack: 0.003, release: 0.14 });
+      this.scheduleTone(ctx, { freq: 520, endFreq: 180, duration: 0.16, gain: 0.012, offset: 0.055, type: 'triangle', attack: 0.002, release: 0.1 });
+    }, true);
+  }
+
   playInvincibilityPickup() {
     if (this.muted) return;
 
@@ -130,6 +148,15 @@ class SoundEffects {
       ? 1
       : Math.max(0, secondsRemaining / INVINCIBILITY_FADE_SECONDS);
     audio.volume = INVINCIBILITY_AUDIO_VOLUME * volumeScale;
+  }
+
+  playSpeedBoostPickup() {
+    this.unlock();
+    this.runWithContext(ctx => {
+      this.scheduleTone(ctx, { freq: 380, endFreq: 620, duration: 0.07, gain: 0.02, type: 'triangle', attack: 0.003, release: 0.045 });
+      this.scheduleTone(ctx, { freq: 640, endFreq: 1100, duration: 0.09, gain: 0.026, offset: 0.04, type: 'sawtooth', attack: 0.002, release: 0.055 });
+      this.scheduleTone(ctx, { freq: 1120, endFreq: 920, duration: 0.06, gain: 0.014, offset: 0.095, type: 'triangle', attack: 0.002, release: 0.04 });
+    }, true);
   }
 
   private getContext() {
